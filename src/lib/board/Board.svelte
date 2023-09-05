@@ -30,17 +30,20 @@
 	import type { TBoard } from '$lib/types/Board.type.js';
 	import type { Vec2, Vec4 } from '$lib/types/Utils.type.js';
 	import { clamp, hasClassOrParentWithClass } from '$lib/utils.js';
-	import { writable, type Writable } from 'svelte/store';
+  import { createEventDispatcher } from 'svelte';
+	  import type { writable, Writable } from 'svelte/store';
 
 	export let activeBoard: Writable<TBoard>;
 
-	activeBoard.set({
-		key: '234',
-		zoom: 1,
-		viewOffset: { x: 0, y: 0 },
-    positionables: writable([]),
-    inView: writable([])
-	});
+    const dispatch = createEventDispatcher();
+
+	// activeBoard.set({
+	// 	key: '234',
+	// 	zoom: 1,
+	// 	viewOffset: { x: 0, y: 0 },
+  //   positionables: writable([]),
+  //   inView: writable([])
+	// });
 
   let dragState = {
     init: { x: 0, y: 0 },
@@ -109,6 +112,7 @@
 
   function onMouseUp(e: MouseEvent) {
     window.removeEventListener('mousemove', onMouseMove);
+    dispatch('dragEnd', { pos: $activeBoard.viewOffset })
   }
 
 </script>
@@ -131,6 +135,7 @@
   #board {
     position: relative;
     cursor: grab;
+    overscroll-behavior-x: contain;
   }
   .checker {
     position: absolute;
