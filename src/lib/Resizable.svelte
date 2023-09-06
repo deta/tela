@@ -20,6 +20,7 @@
 
   // UI Handlers
   function onMouseDown(e: MouseEvent) {
+    e.stopPropagation();
     document.body.classList.add("resizing");
 
     let cX = e.clientX;
@@ -62,7 +63,7 @@
 <svelte:element
   this="div"
   {...$$restProps}
-  class="resizable no-pan {$$restProps.class || ''}"
+  class="resizable {$$restProps.class || ''}"
   on:mousedown={onMouseDown}
 >
   <slot />

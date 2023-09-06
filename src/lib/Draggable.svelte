@@ -20,6 +20,7 @@
 
   // UI Handlers
   function onMouseDown(e: MouseEvent) {
+    e.stopPropagation();
     document.body.classList.add("dragging");
     let cX = e.clientX;
     let cY = e.clientY;
@@ -61,7 +62,7 @@
 <svelte:element
   this="div"
   {...$$restProps}
-  class="draggable no-pan {$$restProps.class || ''}"
+  class="draggable {$$restProps.class || ''}"
   on:mousedown={onMouseDown}
 >
   <slot />

@@ -95,6 +95,7 @@
   }
 
   function onMouseDown(e: MouseEvent) {
+    e.stopPropagation();
     if (hasClassOrParentWithClass(e.target as HTMLElement, "no-pan")) return;
 
     document.body.classList.add("panning");
