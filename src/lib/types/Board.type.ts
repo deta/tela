@@ -4,6 +4,13 @@ export interface TBoardSettings {
   SNAP_TO_GRID?: boolean;
   GRID_SIZE?: number;
 
+  BOUNDS?: {
+    minX: number | null;
+    maxX: number | null;
+    minY: number | null;
+    maxY: number | null;
+  };
+
   // mostly internal stuff
   CULL_MARGIN?: number;
 

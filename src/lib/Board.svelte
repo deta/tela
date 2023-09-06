@@ -15,6 +15,13 @@
     SNAP_TO_GRID: false,
     GRID_SIZE: 20,
 
+    BOUNDS: {
+      minX: null,
+      maxX: null,
+      minY: null,
+      maxY: null
+    },
+
     CULL_MARGIN: 400,
 
     DEV_CHECKERS: false,
@@ -23,7 +30,7 @@
 
   setContext("settings", writable(settings));
 
-  let dragState = {
+  let panState = {
     init: { x: 0, y: 0 },
     curr: { x: 0, y: 0 },
     offset: { x: 0, y: 0 }
@@ -58,9 +65,21 @@
       e.stopPropagation();
       const deltaX = e.deltaX;
       const deltaY = e.deltaY;
+
+      const boundX = clamp(
+        $board.viewOffset.x + deltaX,
+        settings.BOUNDS!.minX !== null ? settings.BOUNDS!.minX : -Infinity,
+        settings.BOUNDS!.maxX !== null ? settings.BOUNDS!.maxX - window.innerWidth : Infinity // todo: use bounding rect
+      );
+      const boundY = clamp(
+        $board.viewOffset.y + deltaY,
+        settings.BOUNDS!.minY !== null ? settings.BOUNDS!.minY : -Infinity,
+        settings.BOUNDS!.maxY !== null ? settings.BOUNDS!.maxY - window.innerHeight : Infinity
+      );
+
       $board.viewOffset = {
-        x: $board.viewOffset.x + deltaX,
-        y: $board.viewOffset.y + deltaY
+        x: boundX, //$board.viewOffset.x + deltaX,
+        y: boundY //$board.viewOffset.y + deltaY
       };
     }
     dispatch("zoomEnd", { zoom: $board.zoom });
@@ -70,24 +89,35 @@
   function onMouseDown(e: MouseEvent) {
     if (hasClassOrParentWithClass(e.target as HTMLElement, "no-pan")) return;
 
-    dragState.init = { x: e.clientX, y: e.clientY };
-    dragState.curr = { x: e.clientX, y: e.clientY };
+    panState.init = { x: e.clientX, y: e.clientY };
+    panState.curr = { x: e.clientX, y: e.clientY };
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp, { once: true });
   }
 
   function onMouseMove(e: MouseEvent) {
-    dragState.offset = {
-      x: Math.floor(e.clientX - dragState.curr.x),
-      y: Math.floor(e.clientY - dragState.curr.y)
+    panState.offset = {
+      x: Math.floor(e.clientX - panState.curr.x),
+      y: Math.floor(e.clientY - panState.curr.y)
     };
 
-    dragState.curr = { x: e.clientX, y: e.clientY };
+    panState.curr = { x: e.clientX, y: e.clientY };
+
+    const boundX = clamp(
+      $board.viewOffset.x - panState.offset.x,
+      settings.BOUNDS!.minX !== null ? settings.BOUNDS!.minX : -Infinity,
+      settings.BOUNDS!.maxX !== null ? settings.BOUNDS!.maxX - window.innerWidth : Infinity
+    );
+    const boundY = clamp(
+      $board.viewOffset.y - panState.offset.y,
+      settings.BOUNDS!.minY !== null ? settings.BOUNDS!.minY : -Infinity,
+      settings.BOUNDS!.maxY !== null ? settings.BOUNDS!.maxY - window.innerHeight : Infinity
+    );
 
     $board.viewOffset = {
-      x: $board.viewOffset.x - dragState.offset.x,
-      y: $board.viewOffset.y - dragState.offset.y
+      x: boundX, //$board.viewOffset.x - panState.offset.x,
+      y: boundY //$board.viewOffset.y - panState.offset.y
     };
 
     //transformCss = `transform: translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px) scale(${$board.zoom});`;
@@ -101,7 +131,9 @@
 </script>
 
 {#if settings.DEV_POS}
-<span style="position: fixed; left: 1ch; bottom: 1ch; z-index: 200; background: white;">{$board.viewOffset.x} - {$board.viewOffset.y}</span>
+  <span style="position: fixed; left: 1ch; bottom: 1ch; z-index: 200; background: white;"
+    >{$board.viewOffset.x} - {$board.viewOffset.y}</span
+  >
 {/if}
 
 <div class="container" on:mousedown={onMouseDown} on:wheel|nonpassive={onWheel}>

@@ -27,7 +27,7 @@
     return (
       pos.x > viewOffset.x - $settings.CULL_MARGIN! &&
       pos.y > viewOffset.y - $settings.CULL_MARGIN! &&
-      pos.x + size.x < viewOffset.x + $settings.CULL_MARGIN! + window.innerWidth / $board.zoom &&
+      pos.x + size.x < viewOffset.x + $settings.CULL_MARGIN! + window.innerWidth / $board.zoom && // todo: use bounding rect not window
       pos.y + size.y < viewOffset.y + $settings.CULL_MARGIN! + window.innerHeight / $board.zoom
     );
   }
