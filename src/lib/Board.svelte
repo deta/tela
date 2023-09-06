@@ -30,7 +30,9 @@
   };
 
   // let transformCss = `transform: scale(${$board.zoom}) translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px);`;
-  $: transformCss = `transform-origin: top left; transform: scale(${$board.zoom}) translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px);`;
+  $: transformCss = `transform-origin: top left; transform: scale(${
+    $board.zoom
+  }) translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px);`;
 
   // UI Handlers
   function onWheel(e: WheelEvent) {
@@ -40,6 +42,17 @@
       const delta = e.deltaY;
       const zoom = clamp($board.zoom - delta / 500, 0.1, 1.9);
       $board.zoom = zoom;
+
+      // todo: adjust position to zoom in on cursor
+      // const centerOffset = {
+      //   x: e.clientX - window.innerWidth / 2,
+      //   y: window.innerHeight / 2 - e.clientY / 2
+      // };
+
+      // $board.viewOffset = {
+      //   x: $board.viewOffset.x - centerOffset.x,
+      //   y: $board.viewOffset.y
+      // };
     } else {
       e.preventDefault();
       e.stopPropagation();
