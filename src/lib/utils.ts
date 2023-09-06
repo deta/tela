@@ -20,3 +20,10 @@ export function hasClassOrParentWithClass(element: HTMLElement, className: strin
 export function snapToGrid(value: number, snap: number): number {
   return Math.round(value / snap) * snap;
 }
+
+const debounceMap = new Map();
+export function debounce(id: string, ms: number, callback: () => void) {
+  if (debounceMap.has(id)) clearTimeout(debounceMap.get(id));
+  const timer = setTimeout(callback, ms);
+  debounceMap.set(id, timer);
+}

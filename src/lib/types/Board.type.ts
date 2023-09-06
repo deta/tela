@@ -23,5 +23,3 @@ export interface TBoard {
   viewOffset: Vec2;
   zoom: number;
 }
-
-export interface TChunk {}
