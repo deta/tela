@@ -1,3 +1,5 @@
+export const twoDecimalTrunc = (num: number) => Math.trunc(num * 100) / 100;
+
 export const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
 export const clamp = (a: number, min = 0, max = 1) => Math.min(max, Math.max(min, a));
 export const invlerp = (x: number, y: number, a: number) => clamp((a - x) / (y - x));

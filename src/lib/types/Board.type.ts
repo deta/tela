@@ -1,13 +1,19 @@
-import type { Writable } from "svelte/store";
-import type { TPositionable } from "./Positionable.type.js";
 import type { Vec2 } from "./Utils.type.js";
 
-export interface TBoard {
-  key: string;
+export interface TBoardSettings {
+  SNAP_TO_GRID?: boolean;
+  GRID_SIZE?: number;
 
-  // Rendering
+  // mostly internal stuff
+  CULL_MARGIN?: number;
+
+  // dev stuff
+  DEV_CHECKERS?: boolean;
+}
+
+export interface TBoard {
   viewOffset: Vec2;
   zoom: number;
-  positionables: Writable<TPositionable[]>;
-  inView: Writable<string[]>;   // Stores keys of draggables in view
 }
+
+export interface TChunk {}

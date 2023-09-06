@@ -4,7 +4,7 @@
   import { createEventDispatcher } from "svelte";
   import type { Writable } from "svelte/store";
 
-  export let pos: Vec2, board: Writable<TBoard>;
+  export let pos: Vec2, board: Writable<TBoard>, wc: boolean;
 
   const dispatch = createEventDispatcher();
   let el: HTMLElement;
@@ -16,6 +16,7 @@
   };
 
   function onMouseDown(e: MouseEvent) {
+    wc = true;
     dragState.init = { x: e.clientX, y: e.clientY };
     dragState.curr = { x: e.clientX, y: e.clientY };
 
@@ -41,6 +42,7 @@
   }
 
   function onMouseUp(e: MouseEvent) {
+    wc = false;
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
     dispatch("dragEnd", { pos });

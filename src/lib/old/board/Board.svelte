@@ -29,7 +29,7 @@
 <script lang="ts">
 	import type { TBoard } from '$lib/types/Board.type.js';
 	import type { Vec2, Vec4 } from '$lib/types/Utils.type.js';
-	import { clamp, hasClassOrParentWithClass } from '$lib/utils.js';
+	import { clamp, hasClassOrParentWithClass, twoDecimalTrunc } from '$lib/utils.js';
   import { createEventDispatcher } from 'svelte';
 	  import type { writable, Writable } from 'svelte/store';
 
@@ -59,27 +59,29 @@
 
   let checkers = [];
   const num = 20;
-  for (let x = -num; x < num; x++) {
-    for (let y = -num; y < num; y++) {
-      checkers.push({ x, y });
-    }
-  }
+  // for (let x = -num; x < num; x++) {
+  //   for (let y = -num; y < num; y++) {
+  //     checkers.push({ x, y });
+  //   }
+  // }
 
   // UI Handlers
   function onMouseWheel(e: WheelEvent) {
     if (e.ctrlKey) {
       e.preventDefault();
       e.stopPropagation();
+
       const delta = e.deltaY;
-      const zoom = clamp($activeBoard.zoom - delta / 1000, 0.1, 2);
-      console.log("zoom", zoom)
+      //const zoom = clamp(twoDecimalTrunc(($activeBoard.zoom + delta / 500)), 0.1, 1.9);
+      const zoom = clamp($activeBoard.zoom + delta / 500, 0.1, 1.9);
+      console.log("zoom", zoom, 2- zoom)
       $activeBoard.zoom = zoom;
     }
     else {
       e.preventDefault();
       e.stopPropagation();
-      const deltaX = -e.deltaX;
-      const deltaY = -e.deltaY;
+      const deltaX = e.deltaX;
+      const deltaY = e.deltaY;
       $activeBoard.viewOffset = {
         x: $activeBoard.viewOffset.x + deltaX / $activeBoard.zoom,
         y: $activeBoard.viewOffset.y + deltaY / $activeBoard.zoom
@@ -98,15 +100,15 @@
 
   function onMouseMove(e: MouseEvent) {
     dragState.offset = {
-      x: (e.clientX - dragState.curr.x) / $activeBoard.zoom,
-      y: (e.clientY - dragState.curr.y) / $activeBoard.zoom
+      x: Math.floor((e.clientX - dragState.curr.x) / $activeBoard.zoom),
+      y: Math.floor((e.clientY - dragState.curr.y) / $activeBoard.zoom)
     };
 
     dragState.curr = { x: e.clientX, y: e.clientY };
 
     $activeBoard.viewOffset = {
-      x: $activeBoard.viewOffset.x + dragState.offset.x,
-      y: $activeBoard.viewOffset.y + dragState.offset.y
+      x: $activeBoard.viewOffset.x - dragState.offset.x,
+      y: $activeBoard.viewOffset.y - dragState.offset.y
     };
   }
 
@@ -122,12 +124,8 @@
   on:wheel|nonpassive={onMouseWheel}/>
 
 <section id="board"
-  style="transform: scale({$activeBoard.zoom});"
-  >
-  {#each checkers as checker}
-  <div class="checker" style="left: {checkerX(checker.x)}px; top: {checkerY(checker.y)}px; background: rgba({70 * checker.x}, {100 * checker.y}, {70 * checker.y}, 0.09);">{checker.x} - {checker.y}</div>
-  {/each}
-
+  style="transform-origin: top left; transform: scale({2- $activeBoard.zoom});"
+  > <!-- trunc -->
   <slot/>
 </section>
 
@@ -136,11 +134,5 @@
     position: relative;
     cursor: grab;
     overscroll-behavior-x: contain;
-  }
-  .checker {
-    position: absolute;
-    width: 200px;
-    height: 200px;
-    user-select: none;
   }
 </style>

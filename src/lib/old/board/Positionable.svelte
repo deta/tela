@@ -4,12 +4,19 @@
 	import { onMount } from 'svelte';
 	import type { Writable } from 'svelte/store';
 
-	export let board: Writable<TBoard>, bounds: TPositionable, stackingOrder: string[];
+	export let board: Writable<TBoard>,
+    bounds: TPositionable,
+    stackingOrder: string[],
+    wc: boolean;
 
-	$: positionCss = `left: ${$board.viewOffset.x + bounds.pos.x}px; top: ${
+    let el: HTMLElement;
+
+    $: transformCss = `transfrom: translate(${$board.viewOffset.x + bounds.pos.x}px, ${$board.viewOffset.y + bounds.pos.y}px); width: ${bounds.size.x}px; height: ${bounds.size.y}px;`;
+
+	/*$: positionCss = `left: ${$board.viewOffset.x + bounds.pos.x}px; top: ${
 		$board.viewOffset.y + bounds.pos.y
 	}px; width: ${bounds.size.x}px; height: ${bounds.size.y}px; z-index: ${stackingOrder.indexOf(bounds.key) >= 0 ? stackingOrder.indexOf(bounds.key) : 0}`;
-
+*/
   // TODO: render / update only when within bounds
 	/*$: asf = isInsideViewBounds(
 		{ x: draggable.pos.x, y: draggable.pos.y, w: draggable.size.x, h: draggable.size.y },
@@ -18,7 +25,7 @@
 	);*/
 
 	onMount(() => {
-		//$board.draggables.update((d))
+    //el.style.transform = `translate(${bounds.pos.x}px, ${bounds.pos.y}px)`;
 	});
 </script>
 
@@ -28,12 +35,15 @@
 <svelte:element this="div"
   {...$$restProps}
   class="positionable {$$restProps.class}"
-  style="{positionCss} {$$restProps.style}">
+  style="width: {bounds.size.x}px; height: {bounds.size.y}px; transform: translate({bounds.pos.x - $board.viewOffset.x}px, {bounds.pos.y - $board.viewOffset.y}px); {wc ? 'background: lime !important;' : ''}">
   <slot/>
 </svelte:element>
 
 <style>
 	div.positionable {
 		position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
 	}
 </style>
