@@ -2,11 +2,12 @@
   import { writable, type Writable } from "svelte/store";
   import type { TBoard, TBoardSettings } from "./types/Board.type.js";
   import { clamp, hasClassOrParentWithClass } from "./utils.js";
-  import { setContext } from "svelte";
+  import { createEventDispatcher, setContext } from "svelte";
 
   export let settings: TBoardSettings;
   export let board: Writable<TBoard>;
 
+  const dispatch = createEventDispatcher();
   setContext("board", board);
 
   // Defaults
@@ -49,6 +50,7 @@
         y: $board.viewOffset.y + deltaY
       };
     }
+    dispatch("zoomEnd", { zoom: $board.zoom });
     //transformCss = `transform: translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px) scale(${$board.zoom});`;
   }
 
@@ -81,6 +83,7 @@
   function onMouseUp(e: MouseEvent) {
     //transformCss = `transform: translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px) scale(${$board.zoom});`;
     document.removeEventListener("mousemove", onMouseMove);
+    dispatch("panEnd", { offset: $board.viewOffset });
   }
 </script>
 
@@ -102,9 +105,10 @@
   }
   .board {
     position: relative;
+    height: 100%;
     overflow: visible;
-    background: lightgray;
 
     will-change: transform;
+    isolation: isolate;
   }
 </style>

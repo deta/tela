@@ -39,6 +39,7 @@
 
   function onMouseUp(e: MouseEvent) {
     document.removeEventListener('mousemove', onMouseMove);
+    dispatch("dragEnd", { pos: pos })
   }
 
 </script>
