@@ -9,6 +9,7 @@ export interface TBoardSettings {
 
   // dev stuff
   DEV_CHECKERS?: boolean;
+  DEV_POS?: boolean;
 }
 
 export interface TBoard {

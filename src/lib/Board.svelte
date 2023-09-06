@@ -100,6 +100,10 @@
   }
 </script>
 
+{#if settings.DEV_POS}
+<span style="position: fixed; left: 1ch; bottom: 1ch; z-index: 200; background: white;">{$board.viewOffset.x} - {$board.viewOffset.y}</span>
+{/if}
+
 <div class="container" on:mousedown={onMouseDown} on:wheel|nonpassive={onWheel}>
   <div class="board" style={transformCss}>
     <slot />
