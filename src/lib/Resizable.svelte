@@ -1,18 +1,18 @@
 <script lang="ts">
   import { createEventDispatcher, getContext } from "svelte";
   import type { Vec2 } from "./types/Utils.type.js";
+  import { snapToGrid } from "./utils.js";
   import type { Writable } from "svelte/store";
   import type { TBoard, TBoardSettings } from "./types/Board.type.js";
-  import { snapToGrid } from "./utils.js";
 
-  export let pos: Vec2;
-
-  const dispatch = createEventDispatcher();
+  export let size: Vec2;
 
   const board = getContext<Writable<TBoard>>("board");
   const settings = getContext<Writable<TBoardSettings>>("settings");
 
-  let dragState = {
+  const dispatch = createEventDispatcher();
+
+  let resizeState = {
     init: { x: 0, y: 0 },
     curr: { x: 0, y: 0 },
     offset: { x: 0, y: 0 }
@@ -20,7 +20,8 @@
 
   // UI Handlers
   function onMouseDown(e: MouseEvent) {
-    document.body.classList.add("dragging");
+    document.body.classList.add("resizing");
+
     let cX = e.clientX;
     let cY = e.clientY;
     // todo: handle touch
@@ -28,8 +29,8 @@
     const x = $settings.SNAP_TO_GRID ? snapToGrid(cX, $settings.GRID_SIZE!) : cX;
     const y = $settings.SNAP_TO_GRID ? snapToGrid(cY, $settings.GRID_SIZE!) : cY;
 
-    dragState.init = { x, y };
-    dragState.curr = { x, y };
+    resizeState.init = { x, y };
+    resizeState.curr = { x, y };
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp, { once: true });
@@ -39,29 +40,29 @@
     let cX = e.clientX;
     let cY = e.clientY;
 
-    dragState.offset = {
-      x: (cX - dragState.curr.x) / $board.zoom,
-      y: (cY - dragState.curr.y) / $board.zoom
+    resizeState.offset = {
+      x: (cX - resizeState.curr.x) / $board.zoom,
+      y: (cY - resizeState.curr.y) / $board.zoom
     };
 
-    dragState.curr = { x: e.clientX, y: e.clientY };
+    resizeState.curr = { x: e.clientX, y: e.clientY };
 
       // todo: optimize setting pos?
-    pos.x += dragState.offset.x;
-    pos.y += dragState.offset.y;
+    size.x += resizeState.offset.x;
+    size.y += resizeState.offset.y;
   }
 
   function onMouseUp(e: MouseEvent) {
-    document.body.classList.remove("dragging");
+    document.body.classList.remove("resizing");
     document.removeEventListener("mousemove", onMouseMove);
-    dispatch("dragEnd", { pos });
+    dispatch("resizeEnd", { size });
   }
 </script>
 
 <svelte:element
   this="div"
   {...$$restProps}
-  class="draggable no-pan {$$restProps.class || ''}"
+  class="resizable no-pan {$$restProps.class || ''}"
   on:mousedown={onMouseDown}
 >
   <slot />

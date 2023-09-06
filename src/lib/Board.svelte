@@ -3,6 +3,7 @@
   import type { TBoard, TBoardSettings } from "./types/Board.type.js";
   import { clamp, hasClassOrParentWithClass } from "./utils.js";
   import { createEventDispatcher, setContext } from "svelte";
+  import { debounce } from "../routes/edit/utils/utils.js";
 
   export let settings: TBoardSettings;
   export let board: Writable<TBoard>;
@@ -63,6 +64,7 @@
     } else {
       e.preventDefault();
       e.stopPropagation();
+      document.body.classList.add("panning");
       const deltaX = e.deltaX;
       const deltaY = e.deltaY;
 
@@ -81,6 +83,7 @@
         x: boundX, //$board.viewOffset.x + deltaX,
         y: boundY //$board.viewOffset.y + deltaY
       };
+      debounce("remove_trackpad_panning", 100, () => document.body.classList.remove("panning"));
     }
     dispatch("zoomEnd", { zoom: $board.zoom });
     //transformCss = `transform: translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px) scale(${$board.zoom});`;
@@ -88,6 +91,8 @@
 
   function onMouseDown(e: MouseEvent) {
     if (hasClassOrParentWithClass(e.target as HTMLElement, "no-pan")) return;
+
+    document.body.classList.add("panning");
 
     panState.init = { x: e.clientX, y: e.clientY };
     panState.curr = { x: e.clientX, y: e.clientY };
@@ -125,6 +130,7 @@
 
   function onMouseUp(e: MouseEvent) {
     //transformCss = `transform: translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px) scale(${$board.zoom});`;
+    document.body.classList.remove("panning");
     document.removeEventListener("mousemove", onMouseMove);
     dispatch("panEnd", { offset: $board.viewOffset });
   }
