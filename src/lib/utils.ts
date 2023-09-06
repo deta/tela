@@ -16,3 +16,7 @@ export function hasClassOrParentWithClass(element: HTMLElement, className: strin
   if (element.parentElement) return hasClassOrParentWithClass(element.parentElement, className);
   else return false;
 }
+
+export function snapToGrid(value: number, snap: number): number {
+  return Math.round(value / snap) * snap;
+}
