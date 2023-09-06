@@ -47,20 +47,24 @@
     if (e.ctrlKey) {
       e.preventDefault();
       e.stopPropagation();
+
+      const absoluteMouseXOld = $board.viewOffset.x + e.clientX / $board.zoom;
+      const absoluteMouseYOld = $board.viewOffset.y + e.clientY / $board.zoom;
+
       const delta = e.deltaY;
       const zoom = clamp($board.zoom - delta / 500, 0.1, 1.9);
       $board.zoom = zoom;
 
-      // todo: adjust position to zoom in on cursor
-      // const centerOffset = {
-      //   x: e.clientX - window.innerWidth / 2,
-      //   y: window.innerHeight / 2 - e.clientY / 2
-      // };
+      const absoluteMouseXNew = $board.viewOffset.x + e.clientX / zoom;
+      const absoluteMouseYNew = $board.viewOffset.y + e.clientY / zoom;
 
-      // $board.viewOffset = {
-      //   x: $board.viewOffset.x - centerOffset.x,
-      //   y: $board.viewOffset.y
-      // };
+      const offsetX = absoluteMouseXOld - absoluteMouseXNew;
+      const offsetY = absoluteMouseYOld - absoluteMouseYNew;
+
+      $board.viewOffset = {
+        x: $board.viewOffset.x + offsetX,
+        y: $board.viewOffset.y + offsetY
+      };
     } else {
       e.preventDefault();
       e.stopPropagation();
