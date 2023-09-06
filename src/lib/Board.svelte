@@ -1,9 +1,8 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
   import type { TBoard, TBoardSettings } from "./types/Board.type.js";
-  import { clamp, hasClassOrParentWithClass } from "./utils.js";
+  import { clamp, debounce, hasClassOrParentWithClass } from "./utils.js";
   import { createEventDispatcher, setContext } from "svelte";
-  import { debounce } from "../routes/edit/utils/utils.js";
 
   export let settings: TBoardSettings;
   export let board: Writable<TBoard>;
@@ -23,6 +22,7 @@
       maxY: null
     },
 
+    CULL: true,
     CULL_MARGIN: 400,
 
     DEV_CHECKERS: false,
@@ -48,6 +48,7 @@
       e.preventDefault();
       e.stopPropagation();
 
+      // todo: fix relative to bounding element box not screen pos
       const absoluteMouseXOld = $board.viewOffset.x + e.clientX / $board.zoom;
       const absoluteMouseYOld = $board.viewOffset.y + e.clientY / $board.zoom;
 
@@ -84,8 +85,8 @@
       );
 
       $board.viewOffset = {
-        x: boundX, //$board.viewOffset.x + deltaX,
-        y: boundY //$board.viewOffset.y + deltaY
+        x: boundX,
+        y: boundY
       };
       debounce("remove_trackpad_panning", 100, () => document.body.classList.remove("panning"));
     }

@@ -12,6 +12,7 @@ export interface TBoardSettings {
   };
 
   // mostly internal stuff
+  CULL?: boolean;
   CULL_MARGIN?: number;
 
   // dev stuff

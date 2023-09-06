@@ -34,7 +34,7 @@
 
 </script>
 
-{#if inView}
+{#if !$settings.CULL || inView}
 <svelte:element
   this="div"
   {...$$restProps}
