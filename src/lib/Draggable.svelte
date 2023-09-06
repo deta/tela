@@ -34,6 +34,8 @@
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp, { once: true });
+
+    dispatch("dragStart", { pos });
   }
 
   function onMouseMove(e: MouseEvent) {

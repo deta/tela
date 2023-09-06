@@ -35,6 +35,8 @@
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp, { once: true });
+
+    dispatch("resizeStart", { size });
   }
 
   function onMouseMove(e: MouseEvent) {
