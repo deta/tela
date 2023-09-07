@@ -1,7 +1,7 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
   import type { TBoard, TBoardMode, TBoardSettings } from "./types/Board.type.js";
-  import { clamp, debounce, hasClassOrParentWithClass } from "./utils.js";
+  import { clamp, debounce, hasClassOrParentWithClass, snapToGrid } from "./utils.js";
   import { createEventDispatcher, onMount, setContext } from "svelte";
 
   export let settings: TBoardSettings;
@@ -55,7 +55,15 @@
     $board.zoom
   }) translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px);`;
 
-  $: selectionCss = `transform: translate(${$board.viewOffset.x + selectState.pos.x / $board.zoom}px, ${$board.viewOffset.y + selectState.pos.y / $board.zoom}px); width: ${selectState.size.x}px; height: ${selectState.size.y}px;`;
+  $: selectionCss = `transform: translate(${
+    settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.x + (selectState.pos.x - 0.5) / $board.zoom), settings.GRID_SIZE!) : $board.viewOffset.x + selectState.pos.x / $board.zoom
+  }px, ${
+    settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.y + (selectState.pos.y - 0.5) / $board.zoom), settings.GRID_SIZE!) : $board.viewOffset.y + selectState.pos.y / $board.zoom
+  }px); width: ${
+    settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.x + 0.5), settings.GRID_SIZE!) : Math.round(selectState.size.x)
+  }px; height: ${
+    settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.y + 0.5), settings.GRID_SIZE!) : Math.round(selectState.size.y)
+  }px;`;
 
   $: modeCursorCss = `cursor: ${
     $mode === "draw" ? "crosshair" : $mode === "select" ? "default" : $mode === "pan" ? "grab" : $mode === "panning" ? "grabbing" : "crosshair"
@@ -78,7 +86,7 @@
   function stopSelect() {
     document.body.classList.remove("selecting");
     document.removeEventListener("mousemove", onMouseMoveSelect);
-    dispatch("selectEnd", { offset: $board.viewOffset });
+    dispatch("selectEnd", { selectState });
   }
 
   // UI Handlers
@@ -176,7 +184,7 @@
       selectState.init = { x: e.clientX, y: e.clientY };
       selectState.curr = { x: e.clientX, y: e.clientY };
       selectState.pos = { x: e.clientX, y: e.clientY };
-      selectState.size = { x: 100, y: 100 };
+      selectState.size = { x: 0, y: 0 };
 
       document.addEventListener("mousemove", onMouseMoveSelect);
       document.addEventListener("mouseup", onMouseUp, { once: true });
@@ -232,6 +240,7 @@
     }
 
     selectState.curr = { x: e.clientX, y: e.clientY };
+    dispatch("selectMove", { selectState });
   }
 
   function onMouseUp(e: MouseEvent) {
@@ -279,7 +288,7 @@
   <div class="board" style={transformCss}>
 
     {#if $mode === "select"}
-    <div class="selectionRect" style="{selectionCss}"/>
+    <div class="selection-rect" style="{selectionCss}"/>
       <!-- <div id="dragIntercept">
         <div id="selectionRect" style={selectionCss} bind:this={selectionRectEl} />
       </div> -->
@@ -309,10 +318,10 @@
     backface-visibility: hidden;
   }
 
-  .selectionRect {
+  .selection-rect {
     position: absolute;
     top: 0;
     left: 0;
-    background: red;
+    background: rgba(0, 0, 0, 0.1);
   }
 </style>
