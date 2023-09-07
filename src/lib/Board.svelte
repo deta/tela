@@ -131,6 +131,7 @@
         y: $board.viewOffset.y + offsetY
       };
     } else {
+      if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
       e.preventDefault();
       e.stopPropagation();
 
@@ -281,7 +282,7 @@
   // });
 </script>
 
-<div style="position: absolute; left: 1ch; bottom: 1ch; background: darkblue; z-index: 200; color: #fff; padding: 4px; display: flex; gap: 2ch; user-select: none; pointer-events: none;">
+<div style="position: absolute; right: 1ch; top: 1ch; background: darkblue; z-index: 200; color: #fff; padding: 4px; display: flex; gap: 2ch; user-select: none; pointer-events: none;">
   {#if $settings.DEV_POS}
     <span
       >{$board.viewOffset.x} - {$board.viewOffset.y}</span
