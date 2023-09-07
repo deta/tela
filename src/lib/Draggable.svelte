@@ -6,6 +6,7 @@
   import { hasClassOrParentWithClass, snapToGrid } from "./utils.js";
 
   export let pos: Vec2;
+  export let size: Vec2;
 
   const dispatch = createEventDispatcher();
 
@@ -51,8 +52,29 @@
     dragState.curr = { x: e.clientX, y: e.clientY };
 
       // todo: optimize setting pos?
-    pos.x += dragState.offset.x;
-    pos.y += dragState.offset.y;
+
+      const newX = pos.x + dragState.offset.x;
+      const newY = pos.y + dragState.offset.y;
+
+      if ($settings.BOUNDS?.minX !== null && newX < $settings.BOUNDS!.minX) {
+        pos.x = $settings.BOUNDS!.minX;
+      }
+      else if ($settings.BOUNDS?.maxX !== null && newX + size.x > $settings.BOUNDS!.maxX) {
+        pos.x = $settings.BOUNDS!.maxX - size.x;
+      }
+      else {
+        pos.x += dragState.offset.x;
+      }
+
+      if ($settings.BOUNDS?.minY !== null && newY < $settings.BOUNDS!.minY) {
+        pos.y = $settings.BOUNDS!.minY;
+      }
+      else if ($settings.BOUNDS?.maxY !== null && newY + size.y > $settings.BOUNDS!.maxY) {
+        pos.y = $settings.BOUNDS!.maxY - size.y;
+      }
+      else {
+        pos.y += dragState.offset.y;
+      }
   }
 
   function onMouseUp(e: MouseEvent) {
