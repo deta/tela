@@ -19,8 +19,12 @@ export interface TBoardSettings {
   DEV_CHECKERS?: boolean;
   DEV_POS?: boolean;
 }
-
 export interface TBoard {
   viewOffset: Vec2;
   zoom: number;
+}
+
+export type TBoardMode = "draw" | "select" | "pan" | "panning" | "zoom";
+export interface TBoardState {
+  mode: TBoardMode;
 }
