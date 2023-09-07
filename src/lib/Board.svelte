@@ -32,6 +32,19 @@
   setContext("board", board);
   setContext("settings", settings);
 
+  if ($settings.BOUNDS?.minX !== null && $board.viewOffset.x < $settings.BOUNDS!.minX) {
+    $board.viewOffset.x = $settings.BOUNDS!.minX;
+  }
+  if ($settings.BOUNDS?.minY !== null && $board.viewOffset.y < $settings.BOUNDS!.minY) {
+    $board.viewOffset.y = $settings.BOUNDS!.minY;
+  }
+  if ($settings.BOUNDS?.maxX !== null && $board.viewOffset.x > $settings.BOUNDS!.maxX - window.innerWidth) {
+    $board.viewOffset.x = $settings.BOUNDS!.maxX - window.innerWidth;
+  }
+  if ($settings.BOUNDS?.maxY !== null && $board.viewOffset.y > $settings.BOUNDS!.maxY - window.innerHeight) {
+    $board.viewOffset.y = $settings.BOUNDS!.maxY - window.innerHeight;
+  }
+
   let mode = writable<TBoardMode>("draw");
   setContext("mode", mode);
 
