@@ -10,7 +10,7 @@
   const dispatch = createEventDispatcher();
 
   // Defaults
-  settings = {
+    CAN_ZOOM: true,
     SNAP_TO_GRID: false,
     GRID_SIZE: 20,
 
@@ -94,6 +94,7 @@
     if (e.ctrlKey) {
       e.preventDefault();
       e.stopPropagation();
+      if (!$settings.CAN_ZOOM) return;
 
       $mode = "zoom";
 

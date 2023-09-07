@@ -1,6 +1,7 @@
 import type { Vec2 } from "./Utils.type.js";
 
 export interface TBoardSettings {
+  CAN_ZOOM?: boolean;
   SNAP_TO_GRID?: boolean;
   GRID_SIZE?: number;
 
