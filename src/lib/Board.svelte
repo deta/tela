@@ -4,12 +4,13 @@
   import { clamp, debounce, hasClassOrParentWithClass, snapToGrid } from "./utils.js";
   import { createEventDispatcher, onMount, setContext } from "svelte";
 
-  export let settings: TBoardSettings;
+  export let settings: Writable<TBoardSettings>;
   export let board: Writable<TBoard>;
 
   const dispatch = createEventDispatcher();
 
   // Defaults
+  $settings = {
     CAN_ZOOM: true,
     SNAP_TO_GRID: false,
     GRID_SIZE: 20,
@@ -25,11 +26,11 @@
     CULL_MARGIN: 400,
 
     DEV_CHECKERS: false,
-    ...settings
+    ...$settings
   } satisfies TBoardSettings;
 
   setContext("board", board);
-  setContext("settings", writable(settings));
+  setContext("settings", settings);
 
   let mode = writable<TBoardMode>("draw");
   setContext("mode", mode);
@@ -56,13 +57,13 @@
   }) translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px);`;
 
   $: selectionCss = `transform: translate(${
-    settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.x + (selectState.pos.x - 0.5) / $board.zoom), settings.GRID_SIZE!) : $board.viewOffset.x + selectState.pos.x / $board.zoom
+    $settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.x + (selectState.pos.x - 0.5) / $board.zoom), $settings.GRID_SIZE!) : $board.viewOffset.x + selectState.pos.x / $board.zoom
   }px, ${
-    settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.y + (selectState.pos.y - 0.5) / $board.zoom), settings.GRID_SIZE!) : $board.viewOffset.y + selectState.pos.y / $board.zoom
+    $settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.y + (selectState.pos.y - 0.5) / $board.zoom), $settings.GRID_SIZE!) : $board.viewOffset.y + selectState.pos.y / $board.zoom
   }px); width: ${
-    settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.x + 0.5), settings.GRID_SIZE!) : Math.round(selectState.size.x)
+    $settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.x + 0.5), $settings.GRID_SIZE!) : Math.round(selectState.size.x)
   }px; height: ${
-    settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.y + 0.5), settings.GRID_SIZE!) : Math.round(selectState.size.y)
+    $settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.y + 0.5), $settings.GRID_SIZE!) : Math.round(selectState.size.y)
   }px;`;
 
   $: modeCursorCss = `cursor: ${
@@ -125,13 +126,13 @@
 
       const boundX = clamp(
         $board.viewOffset.x + deltaX,
-        settings.BOUNDS!.minX !== null ? settings.BOUNDS!.minX : -Infinity,
-        settings.BOUNDS!.maxX !== null ? settings.BOUNDS!.maxX - window.innerWidth : Infinity // todo: use bounding rect
+        $settings.BOUNDS!.minX !== null ? $settings.BOUNDS!.minX : -Infinity,
+        $settings.BOUNDS!.maxX !== null ? $settings.BOUNDS!.maxX - window.innerWidth : Infinity // todo: use bounding rect
       );
       const boundY = clamp(
         $board.viewOffset.y + deltaY,
-        settings.BOUNDS!.minY !== null ? settings.BOUNDS!.minY : -Infinity,
-        settings.BOUNDS!.maxY !== null ? settings.BOUNDS!.maxY - window.innerHeight : Infinity
+        $settings.BOUNDS!.minY !== null ? $settings.BOUNDS!.minY : -Infinity,
+        $settings.BOUNDS!.maxY !== null ? $settings.BOUNDS!.maxY - window.innerHeight : Infinity
       );
 
       $board.viewOffset = {
@@ -145,7 +146,6 @@
   }
 
   function onKeyDown(e: KeyboardEvent) {
-    console.log(e.shiftKey);
     if (e.shiftKey) {
       mode.set("select");
     } else if (e.metaKey) {
@@ -162,14 +162,14 @@
   }
 
   function onMouseDown(e: MouseEvent) {
+    if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
     if ($mode === "pan") {
       mode.set("panning");
     }
 
     if ($mode === "panning") {
-      e.stopPropagation();
-      if (hasClassOrParentWithClass(e.target as HTMLElement, "no-pan")) return;
 
+      e.stopPropagation();
       startPanning();
 
       dragState.init = { x: e.clientX, y: e.clientY };
@@ -202,13 +202,13 @@
 
     const boundX = clamp(
       $board.viewOffset.x - dragState.offset.x,
-      settings.BOUNDS!.minX !== null ? settings.BOUNDS!.minX : -Infinity,
-      settings.BOUNDS!.maxX !== null ? settings.BOUNDS!.maxX - window.innerWidth : Infinity
+      $settings.BOUNDS!.minX !== null ? $settings.BOUNDS!.minX : -Infinity,
+      $settings.BOUNDS!.maxX !== null ? $settings.BOUNDS!.maxX - window.innerWidth : Infinity
     );
     const boundY = clamp(
       $board.viewOffset.y - dragState.offset.y,
-      settings.BOUNDS!.minY !== null ? settings.BOUNDS!.minY : -Infinity,
-      settings.BOUNDS!.maxY !== null ? settings.BOUNDS!.maxY - window.innerHeight : Infinity
+      $settings.BOUNDS!.minY !== null ? $settings.BOUNDS!.minY : -Infinity,
+      $settings.BOUNDS!.maxY !== null ? $settings.BOUNDS!.maxY - window.innerHeight : Infinity
     );
 
     $board.viewOffset = {
@@ -269,7 +269,7 @@
 </script>
 
 <div style="position: absolute; left: 1ch; bottom: 1ch; background: darkblue; z-index: 200; color: #fff; padding: 4px; display: flex; gap: 2ch; user-select: none; pointer-events: none;">
-  {#if settings.DEV_POS}
+  {#if $settings.DEV_POS}
     <span
       >{$board.viewOffset.x} - {$board.viewOffset.y}</span
     >
@@ -282,7 +282,7 @@
 <div
   class="container"
   style={modeCursorCss}
-  on:mousedown|capture={onMouseDown}
+  on:mousedown={onMouseDown}
   on:wheel|nonpassive={onWheel}
   bind:this={containerEl}
 >

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, getContext } from "svelte";
   import type { Vec2 } from "./types/Utils.type.js";
-  import { snapToGrid } from "./utils.js";
+  import { hasClassOrParentWithClass, snapToGrid } from "./utils.js";
   import type { Writable } from "svelte/store";
   import type { TBoard, TBoardSettings } from "./types/Board.type.js";
 
@@ -20,6 +20,7 @@
 
   // UI Handlers
   function onMouseDown(e: MouseEvent) {
+    if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
     e.stopPropagation();
     document.body.classList.add("resizing");
 
