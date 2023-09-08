@@ -32,18 +32,18 @@
   setContext("board", board);
   setContext("settings", settings);
 
-  if ($settings.BOUNDS?.minX !== null && $board.viewOffset.x < $settings.BOUNDS!.minX) {
-    $board.viewOffset.x = $settings.BOUNDS!.minX;
-  }
-  if ($settings.BOUNDS?.minY !== null && $board.viewOffset.y < $settings.BOUNDS!.minY) {
-    $board.viewOffset.y = $settings.BOUNDS!.minY;
-  }
-  if ($settings.BOUNDS?.maxX !== null && $board.viewOffset.x > $settings.BOUNDS!.maxX - window.innerWidth) {
-    $board.viewOffset.x = $settings.BOUNDS!.maxX - window.innerWidth;
-  }
-  if ($settings.BOUNDS?.maxY !== null && $board.viewOffset.y > $settings.BOUNDS!.maxY - window.innerHeight) {
-    $board.viewOffset.y = $settings.BOUNDS!.maxY - window.innerHeight;
-  }
+  // if ($settings.BOUNDS?.minX !== null && $board.viewOffset.x < $settings.BOUNDS!.minX) {
+  //   $board.viewOffset.x = $settings.BOUNDS!.minX;
+  // }
+  // if ($settings.BOUNDS?.minY !== null && $board.viewOffset.y < $settings.BOUNDS!.minY) {
+  //   $board.viewOffset.y = $settings.BOUNDS!.minY;
+  // }
+  // if ($settings.BOUNDS?.maxX !== null && $board.viewOffset.x > $settings.BOUNDS!.maxX - window.innerWidth) {
+  //   $board.viewOffset.x = $settings.BOUNDS!.maxX - window.innerWidth;
+  // }
+  // if ($settings.BOUNDS?.maxY !== null && $board.viewOffset.y > $settings.BOUNDS!.maxY - window.innerHeight) {
+  //   $board.viewOffset.y = $settings.BOUNDS!.maxY - window.innerHeight;
+  // }
 
   let mode = writable<TBoardMode>("draw");
   setContext("mode", mode);
@@ -69,14 +69,24 @@
     $board.zoom
   }) translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px);`;
 
+  // $: selectionCss = `transform: translate(${
+  //   $settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.x + (selectState.pos.x - 0.5) / $board.zoom), $settings.GRID_SIZE!) : $board.viewOffset.x + selectState.pos.x / $board.zoom
+  // }px, ${
+  //   $settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.y + (selectState.pos.y - 0.5) / $board.zoom), $settings.GRID_SIZE!) : $board.viewOffset.y + selectState.pos.y / $board.zoom
+  // }px); width: ${
+  //   $settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.x + 0.5), $settings.GRID_SIZE!) : Math.round(selectState.size.x)
+  // }px; height: ${
+  //   $settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.y + 0.5), $settings.GRID_SIZE!) : Math.round(selectState.size.y)
+  // }px;`;
+
   $: selectionCss = `transform: translate(${
-    $settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.x + (selectState.pos.x - 0.5) / $board.zoom), $settings.GRID_SIZE!) : $board.viewOffset.x + selectState.pos.x / $board.zoom
+    $board.viewOffset.x + selectState.pos.x / $board.zoom
   }px, ${
-    $settings.SNAP_TO_GRID ? snapToGrid(Math.floor($board.viewOffset.y + (selectState.pos.y - 0.5) / $board.zoom), $settings.GRID_SIZE!) : $board.viewOffset.y + selectState.pos.y / $board.zoom
+    $board.viewOffset.y + selectState.pos.y / $board.zoom
   }px); width: ${
-    $settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.x + 0.5), $settings.GRID_SIZE!) : Math.round(selectState.size.x)
+    Math.round(selectState.size.x)
   }px; height: ${
-    $settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.y + 0.5), $settings.GRID_SIZE!) : Math.round(selectState.size.y)
+    Math.round(selectState.size.y)
   }px;`;
 
   $: modeCursorCss = `cursor: ${
@@ -84,6 +94,21 @@
   };`;
 
   // Utils
+  function startDrawing() {
+    document.body.classList.add("drawing");
+    dispatch("drawStart");
+  }
+  function stopDrawing() {
+    document.body.classList.remove("drawing");
+    document.removeEventListener("mousemove", onMouseMoveDraw);
+    selectState = {
+      init: { x: 0, y: 0 },
+      curr: { x: 0, y: 0 },
+      offset: { x: 0, y: 0 },
+      pos: { x: 0, y: 0 },
+      size: { x: 0, y: 0 }
+    }
+  }
   function startPanning() {
     document.body.classList.add("panning");
   }
@@ -94,13 +119,13 @@
   }
 
   function startSelect() {
+    dispatch("selectStart");
     document.body.classList.add("selecting");
     document.addEventListener("mousemove", onMouseMoveSelect);
   }
   function stopSelect() {
     document.body.classList.remove("selecting");
     document.removeEventListener("mousemove", onMouseMoveSelect);
-    dispatch("selectEnd", { selectState });
   }
 
   // UI Handlers
@@ -169,8 +194,9 @@
 
   function onKeyUp(e: KeyboardEvent) {
     if (!e.shiftKey && !e.metaKey) {
-      stopPanning();
-      stopSelect();
+      $mode === "draw" && stopDrawing();
+      ($mode === "pan" || $mode === "panning") && stopPanning();
+      $mode === "select" && stopSelect();
       mode.set("draw");
     }
   }
@@ -181,7 +207,19 @@
       mode.set("panning");
     }
 
-    if ($mode === "panning") {
+    if ($mode === "draw") {
+      e.stopPropagation();
+      startDrawing();
+
+      selectState.init = { x: e.clientX, y: e.clientY };
+      selectState.curr = { x: e.clientX, y: e.clientY };
+      selectState.pos = { x: e.clientX, y: e.clientY };
+      selectState.size = { x: 0, y: 0 };
+
+      document.addEventListener("mousemove", onMouseMoveDraw);
+      document.addEventListener("mouseup", onMouseUp, { once: true });
+    }
+    else if ($mode === "panning") {
 
       e.stopPropagation();
       startPanning();
@@ -258,13 +296,42 @@
     dispatch("selectMove", { selectState });
   }
 
+  function onMouseMoveDraw(e: MouseEvent) {
+    selectState.offset = {
+      x: -Math.floor(selectState.init.x - selectState.curr.x),
+      y: -Math.floor(selectState.init.y - selectState.curr.y)
+    };
+
+    selectState.pos.x = selectState.init.x;
+    selectState.pos.y = selectState.init.y;
+
+    selectState.size.x = selectState.offset.x / $board.zoom;
+    selectState.size.y = selectState.offset.y / $board.zoom;
+
+    if (selectState.size.x < 0) {
+      selectState.size.x = Math.abs(selectState.offset.x / $board.zoom);
+      selectState.pos.x = selectState.init.x - selectState.size.x * $board.zoom;
+    }
+    if (selectState.size.y < 0) {
+      selectState.size.y = Math.abs(selectState.offset.y / $board.zoom);
+      selectState.pos.y = selectState.init.y - selectState.size.y * $board.zoom;
+    }
+
+    selectState.curr = { x: e.clientX, y: e.clientY };
+  }
+
   function onMouseUp(e: MouseEvent) {
-    if ($mode === "panning") {
+    if ($mode === "draw") {
+      dispatch("drawEnd", { selection: { pos: selectState.pos, size: selectState.size } });
+      stopDrawing();
+    }
+    else if ($mode === "panning") {
       $mode = "pan";
       stopPanning();
     }
     else if ($mode === "select") {
       stopSelect();
+      dispatch("selectEnd", { selectState });
       selectState = {
         init: { x: 0, y: 0 },
         curr: { x: 0, y: 0 },
@@ -302,7 +369,7 @@
 >
   <div class="board" style={transformCss}>
 
-    {#if $mode === "select"}
+    {#if $mode === "select" || $mode === "draw"}
     <div class="selection-rect" style="{selectionCss}"/>
       <!-- <div id="dragIntercept">
         <div id="selectionRect" style={selectionCss} bind:this={selectionRectEl} />
@@ -337,6 +404,7 @@
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 99999;
     background: rgba(0, 0, 0, 0.1);
   }
 </style>
