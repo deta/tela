@@ -3,7 +3,7 @@
   import type { Writable } from "svelte/store";
   import type { Vec2 } from "./types/Utils.type.js";
   import type { TBoard, TBoardSettings } from "./types/Board.type.js";
-  import { snapToGrid } from "./utils.js";
+  import { isBrowser, snapToGrid } from "./utils.js";
 
   export let pos: Vec2;
   export let size: Vec2;
@@ -23,12 +23,16 @@
   }px; z-index: ${z};`;
   $: inView = isVisible($board.viewOffset)
 
-  function isVisible(viewOffset: Vec2) {
+  function isVisible(viewOffset: Vec2, viewport: Vec2 = { x: 620, y: 340 }) {
+    if (isBrowser()) {
+      viewport.x = window.innerWidth;
+      viewport.y = window.innerHeight;
+    }
     return (
       pos.x > viewOffset.x - $settings.CULL_MARGIN! &&
       pos.y > viewOffset.y - $settings.CULL_MARGIN! &&
-      pos.x + size.x < viewOffset.x + $settings.CULL_MARGIN! + window.innerWidth / $board.zoom && // todo: use bounding rect not window
-      pos.y + size.y < viewOffset.y + $settings.CULL_MARGIN! + window.innerHeight / $board.zoom
+      pos.x + size.x < viewOffset.x + $settings.CULL_MARGIN! + viewport.x / $board.zoom && // todo: use bounding rect not window
+      pos.y + size.y < viewOffset.y + $settings.CULL_MARGIN! + viewport.y / $board.zoom
     );
   }
 
@@ -51,5 +55,8 @@
     top: 0;
     left: 0;
     transform-origin: top left;
+
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
   }
 </style>

@@ -386,7 +386,7 @@
     height: 100%;
 
     overflow: hidden;
-    overscroll-behavior: contain;
+    /* overscroll-behavior: contain; */
   }
   .board {
     position: relative;

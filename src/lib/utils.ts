@@ -27,3 +27,7 @@ export function debounce(id: string, ms: number, callback: () => void) {
   const timer = setTimeout(callback, ms);
   debounceMap.set(id, timer);
 }
+
+export function isBrowser() {
+  return typeof window !== "undefined";
+}
