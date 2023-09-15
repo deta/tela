@@ -19,7 +19,7 @@
     "pub": "pnpm publish --no-git-checks --access public",
     "dev:storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build -o docs",
-    "publish:storybook": "pnpm build:storybook && touch ./docs/.nojekyll && gh-pages -d ./docs -t true"
+    "publish:storybook": "pnpm build:storybook && touch ./docs/.nojekyll && gh-pages -d ./docs -t true -r https://github.com/deta/tela"
   },
   "exports": {
     ".": {

@@ -1,0 +1,22 @@
+import { Meta, Source, ArgTypes, Canvas, Story } from "@storybook/blocks";
+import * as GridStories from "./Grid.stories";
+
+<Meta of={GridStories} name="Example"/>
+
+# Grid
+
+The Grid component can be placed inside a board to display an infinite background grid.
+
+## Usage
+
+Just place the Grid component inside a Board component and use the props to adjust the stlying.
+
+> 💡 The grid gap itself is derived from the board's `GRID_SIZE` setting.
+
+<Source language="html" code={`
+...
+<Board ...>
+  <Grid dotColor="black" dotOpacity={30} dotSize={1}/>
+</Board>
+...
+`} />
