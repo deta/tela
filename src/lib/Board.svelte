@@ -4,8 +4,8 @@
   import { clamp, debounce, hasClassOrParentWithClass, snapToGrid } from "./utils.js";
   import { createEventDispatcher, onMount, setContext } from "svelte";
 
-  export let settings: Writable<TBoardSettings>;
-  export let board: Writable<TBoard>;
+  export let settings: Writable<Partial<TBoardSettings>>;
+  export let board: Writable<Partial<TBoard>>;
 
   const dispatch = createEventDispatcher();
 
@@ -25,9 +25,19 @@
     CULL: true,
     CULL_MARGIN: 400,
 
-    DEV_CHECKERS: false,
+    DEV: {
+      SHOW_POS: false,
+      SHOW_MODE: false
+    },
     ...$settings
   } satisfies TBoardSettings;
+
+  $board = {
+    zoom: 1,
+    viewOffset: { x: 0, y: 0 },
+    viewSize: { x: 1280, y: 720 },
+    ...$board
+  } satisfies TBoard;
 
   setContext("board", board);
   setContext("settings", settings);

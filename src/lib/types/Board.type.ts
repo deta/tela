@@ -17,11 +17,14 @@ export interface TBoardSettings {
   CULL_MARGIN?: number;
 
   // dev stuff
-  DEV_CHECKERS?: boolean;
-  DEV_POS?: boolean;
+  DEV: {
+    SHOW_POS: boolean;
+    SHOW_MODE: boolean;
+  };
 }
 export interface TBoard {
   viewOffset: Vec2;
+  viewSize: Vec2;
   zoom: number;
 }
 
