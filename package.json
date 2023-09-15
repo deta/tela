@@ -4,6 +4,7 @@
   "author": {
     "name": "Maximilian Heidenreich"
   },
+  "homepage": "http://deta.github.io/tela",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build && npm run package",
@@ -16,8 +17,9 @@
     "lint": "prettier --plugin-search-dir . --check .",
     "format": "prettier --plugin-search-dir . --write .",
     "pub": "pnpm publish --no-git-checks --access public",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "dev:storybook": "storybook dev -p 6006",
+    "build:storybook": "storybook build -o docs",
+    "publish:storybook": "pnpm build:storybook && touch ./docs/.nojekyll && gh-pages -d ./docs -t true"
   },
   "exports": {
     ".": {
@@ -37,6 +39,7 @@
     "@storybook/addon-essentials": "^7.4.1",
     "@storybook/addon-interactions": "^7.4.1",
     "@storybook/addon-links": "^7.4.1",
+    "@storybook/addon-svelte-csf": "^4.0.5",
     "@storybook/blocks": "^7.4.1",
     "@storybook/svelte": "^7.4.1",
     "@storybook/sveltekit": "^7.4.1",
@@ -47,6 +50,7 @@
     "@sveltejs/package": "^2.0.0",
     "@types/ace": "^0.0.48",
     "ace-builds": "^1.24.1",
+    "gh-pages": "^6.0.0",
     "prettier": "^2.8.0",
     "prettier-plugin-svelte": "^2.10.1",
     "publint": "^0.1.9",
