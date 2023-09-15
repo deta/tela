@@ -201,9 +201,13 @@
     }
   }
 
-  function onMouseDown(e: MouseEvent) {
-    if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
-    if ($mode === "pan") {
+  function onMouseDown(e: MouseEvent | TouchEvent) {
+    const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
+    const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
+    const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
+
+    if (hasClassOrParentWithClass(target as HTMLElement, "tela-ignore")) return;
+    if ($mode === "pan" || (e as TouchEvent).targetTouches?.length === 1) {
       mode.set("panning");
     }
 
@@ -211,9 +215,9 @@
       e.stopPropagation();
       startDrawing();
 
-      selectState.init = { x: e.clientX, y: e.clientY };
-      selectState.curr = { x: e.clientX, y: e.clientY };
-      selectState.pos = { x: e.clientX, y: e.clientY };
+      selectState.init = { x: clientX, y: clientY };
+      selectState.curr = { x: clientX, y: clientY };
+      selectState.pos = { x: clientX, y: clientY };
       selectState.size = { x: 0, y: 0 };
 
       document.addEventListener("mousemove", onMouseMoveDraw);
@@ -224,19 +228,21 @@
       e.stopPropagation();
       startPanning();
 
-      dragState.init = { x: e.clientX, y: e.clientY };
-      dragState.curr = { x: e.clientX, y: e.clientY };
+      dragState.init = { x: clientX, y: clientY };
+      dragState.curr = { x: clientX, y: clientY };
 
       document.addEventListener("mousemove", onMouseMovePan);
       document.addEventListener("mouseup", onMouseUp, { once: true });
+      document.addEventListener("touchmove", onMouseMovePan);
+      document.addEventListener("touchend", onMouseUp, { once: true });
     }
     else if ($mode === "select") {
       e.stopPropagation();
       startSelect();
 
-      selectState.init = { x: e.clientX, y: e.clientY };
-      selectState.curr = { x: e.clientX, y: e.clientY };
-      selectState.pos = { x: e.clientX, y: e.clientY };
+      selectState.init = { x: clientX, y: clientY };
+      selectState.curr = { x: clientX, y: clientY };
+      selectState.pos = { x: clientX, y: clientY };
       selectState.size = { x: 0, y: 0 };
 
       document.addEventListener("mousemove", onMouseMoveSelect);
@@ -244,13 +250,16 @@
     }
   }
 
-  function onMouseMovePan(e: MouseEvent) {
+  function onMouseMovePan(e: MouseEvent | TouchEvent) {
+    const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
+    const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
+
     dragState.offset = {
-      x: Math.floor(e.clientX - dragState.curr.x),
-      y: Math.floor(e.clientY - dragState.curr.y)
+      x: Math.floor(clientX - dragState.curr.x),
+      y: Math.floor(clientY - dragState.curr.y)
     };
 
-    dragState.curr = { x: e.clientX, y: e.clientY };
+    dragState.curr = { x: clientX, y: clientY };
 
     const boundX = clamp(
       $board.viewOffset.x - dragState.offset.x,
@@ -320,7 +329,7 @@
     selectState.curr = { x: e.clientX, y: e.clientY };
   }
 
-  function onMouseUp(e: MouseEvent) {
+  function onMouseUp(e: MouseEvent | TouchEvent) {
     if ($mode === "draw") {
       dispatch("drawEnd", { selection: { pos: selectState.pos, size: selectState.size } });
       stopDrawing();
@@ -349,6 +358,7 @@
   // });
 </script>
 
+{#if false} <!-- todo: add dev toggle -->
 <div style="position: absolute; right: 1ch; top: 1ch; background: darkblue; z-index: 200; color: #fff; padding: 4px; display: flex; gap: 2ch; user-select: none; pointer-events: none;">
   {#if $settings.DEV_POS}
     <span
@@ -357,6 +367,7 @@
   {/if}
   <span>{$mode}</span>
 </div>
+{/if}
 
 <svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} />
 
@@ -364,6 +375,7 @@
   class="container"
   style={modeCursorCss}
   on:mousedown={onMouseDown}
+  on:touchstart|nonpassive={onMouseDown}
   on:wheel|nonpassive={onWheel}
   bind:this={containerEl}
 >
