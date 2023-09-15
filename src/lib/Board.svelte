@@ -1,7 +1,7 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
   import type { TBoard, TBoardMode, TBoardSettings } from "./types/Board.type.js";
-  import { clamp, debounce, hasClassOrParentWithClass, snapToGrid } from "./utils.js";
+  import { clamp, debounce, hasClassOrParentWithClass } from "./utils.js";
   import { createEventDispatcher, onMount, setContext } from "svelte";
 
   export let settings: Writable<Partial<TBoardSettings>>;
@@ -15,13 +15,6 @@
     SNAP_TO_GRID: false,
     GRID_SIZE: 20,
 
-    BOUNDS: {
-      minX: null,
-      maxX: null,
-      minY: null,
-      maxY: null
-    },
-
     CULL: true,
     CULL_MARGIN: 400,
 
@@ -29,37 +22,34 @@
       SHOW_POS: false,
       SHOW_MODE: false
     },
-    ...$settings
+    ...$settings,
+    BOUNDS: {
+      minX: null,
+      maxX: null,
+      minY: null,
+      maxY: null,
+      maxZoom: 3,
+      minZoom: 0,
+      limit: "hard",
+      ...$settings.BOUNDS
+    },
   } satisfies TBoardSettings;
 
   $board = {
     zoom: 1,
     viewOffset: { x: 0, y: 0 },
     viewSize: { x: 1280, y: 720 },
+    viewPort: { x: 0, y: 0, w: 0, h: 0 },
     ...$board
   } satisfies TBoard;
 
   setContext("board", board);
   setContext("settings", settings);
 
-  // if ($settings.BOUNDS?.minX !== null && $board.viewOffset.x < $settings.BOUNDS!.minX) {
-  //   $board.viewOffset.x = $settings.BOUNDS!.minX;
-  // }
-  // if ($settings.BOUNDS?.minY !== null && $board.viewOffset.y < $settings.BOUNDS!.minY) {
-  //   $board.viewOffset.y = $settings.BOUNDS!.minY;
-  // }
-  // if ($settings.BOUNDS?.maxX !== null && $board.viewOffset.x > $settings.BOUNDS!.maxX - window.innerWidth) {
-  //   $board.viewOffset.x = $settings.BOUNDS!.maxX - window.innerWidth;
-  // }
-  // if ($settings.BOUNDS?.maxY !== null && $board.viewOffset.y > $settings.BOUNDS!.maxY - window.innerHeight) {
-  //   $board.viewOffset.y = $settings.BOUNDS!.maxY - window.innerHeight;
-  // }
-
   let mode = writable<TBoardMode>("draw");
   setContext("mode", mode);
 
   let containerEl: HTMLDivElement;
-
   let dragState = {
     init: { x: 0, y: 0 },
     curr: { x: 0, y: 0 },
@@ -72,9 +62,8 @@
     offset: { x: 0, y: 0 },
     pos: { x: 0, y: 0 },
     size: { x: 0, y: 0 }
-  }
+  };
 
-  // let transformCss = `transform: scale(${$board.zoom}) translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px);`;
   $: transformCss = `transform-origin: top left; transform: scale(${
     $board.zoom
   }) translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px);`;
@@ -91,19 +80,42 @@
 
   $: selectionCss = `transform: translate(${
     $board.viewOffset.x + selectState.pos.x / $board.zoom
-  }px, ${
-    $board.viewOffset.y + selectState.pos.y / $board.zoom
-  }px); width: ${
-    Math.round(selectState.size.x)
-  }px; height: ${
-    Math.round(selectState.size.y)
-  }px;`;
+  }px, ${$board.viewOffset.y + selectState.pos.y / $board.zoom}px); width: ${Math.round(
+    selectState.size.x
+  )}px; height: ${Math.round(selectState.size.y)}px;`;
 
   $: modeCursorCss = `cursor: ${
-    $mode === "draw" ? "crosshair" : $mode === "select" ? "default" : $mode === "pan" ? "grab" : $mode === "panning" ? "grabbing" : "crosshair"
+    $mode === "draw"
+      ? "crosshair"
+      : $mode === "select"
+      ? "default"
+      : $mode === "pan"
+      ? "grab"
+      : $mode === "panning"
+      ? "grabbing"
+      : "crosshair"
   };`;
 
+  // if ($settings.BOUNDS?.minX !== null && $board.viewOffset.x < $settings.BOUNDS!.minX) {
+  //   $board.viewOffset.x = $settings.BOUNDS!.minX;
+  // }
+  // if ($settings.BOUNDS?.minY !== null && $board.viewOffset.y < $settings.BOUNDS!.minY) {
+  //   $board.viewOffset.y = $settings.BOUNDS!.minY;
+  // }
+  // if ($settings.BOUNDS?.maxX !== null && $board.viewOffset.x > $settings.BOUNDS!.maxX - window.innerWidth) {
+  //   $board.viewOffset.x = $settings.BOUNDS!.maxX - window.innerWidth;
+  // }
+  // if ($settings.BOUNDS?.maxY !== null && $board.viewOffset.y > $settings.BOUNDS!.maxY - window.innerHeight) {
+  //   $board.viewOffset.y = $settings.BOUNDS!.maxY - window.innerHeight;
+  // }
+
   // Utils
+  function posToViewportPos(x: number, y: number) {
+    return {
+      x: x - $board.viewPort.x,
+      y: y - $board.viewPort.y + window.scrollY
+    };
+  }
   function startDrawing() {
     document.body.classList.add("drawing");
     dispatch("drawStart");
@@ -117,7 +129,7 @@
       offset: { x: 0, y: 0 },
       pos: { x: 0, y: 0 },
       size: { x: 0, y: 0 }
-    }
+    };
   }
   function startPanning() {
     document.body.classList.add("panning");
@@ -213,8 +225,10 @@
 
   function onMouseDown(e: MouseEvent | TouchEvent) {
     const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
-    const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
-    const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
+    const { x: clientX, y: clientY } = posToViewportPos(
+      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
+      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY
+    );
 
     if (hasClassOrParentWithClass(target as HTMLElement, "tela-ignore")) return;
     if ($mode === "pan" || (e as TouchEvent).targetTouches?.length === 1) {
@@ -232,9 +246,7 @@
 
       document.addEventListener("mousemove", onMouseMoveDraw);
       document.addEventListener("mouseup", onMouseUp, { once: true });
-    }
-    else if ($mode === "panning") {
-
+    } else if ($mode === "panning") {
       e.stopPropagation();
       startPanning();
 
@@ -245,8 +257,7 @@
       document.addEventListener("mouseup", onMouseUp, { once: true });
       document.addEventListener("touchmove", onMouseMovePan);
       document.addEventListener("touchend", onMouseUp, { once: true });
-    }
-    else if ($mode === "select") {
+    } else if ($mode === "select") {
       e.stopPropagation();
       startSelect();
 
@@ -315,7 +326,12 @@
     dispatch("selectMove", { selectState });
   }
 
-  function onMouseMoveDraw(e: MouseEvent) {
+  function onMouseMoveDraw(e: MouseEvent | TouchEvent) {
+    const { x: clientX, y: clientY } = posToViewportPos(
+      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
+      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY
+    );
+
     selectState.offset = {
       x: -Math.floor(selectState.init.x - selectState.curr.x),
       y: -Math.floor(selectState.init.y - selectState.curr.y)
@@ -336,19 +352,17 @@
       selectState.pos.y = selectState.init.y - selectState.size.y * $board.zoom;
     }
 
-    selectState.curr = { x: e.clientX, y: e.clientY };
+    selectState.curr = { x: clientX, y: clientY };
   }
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
     if ($mode === "draw") {
       dispatch("drawEnd", { selection: { pos: selectState.pos, size: selectState.size } });
       stopDrawing();
-    }
-    else if ($mode === "panning") {
+    } else if ($mode === "panning") {
       $mode = "pan";
       stopPanning();
-    }
-    else if ($mode === "select") {
+    } else if ($mode === "select") {
       stopSelect();
       dispatch("selectEnd", { selectState });
       selectState = {
@@ -357,26 +371,35 @@
         offset: { x: 0, y: 0 },
         pos: { x: 0, y: 0 },
         size: { x: 0, y: 0 }
-      }
+      };
     }
 
     //transformCss = `transform: translate(${-$board.viewOffset.x}px, ${-$board.viewOffset.y}px) scale(${$board.zoom});`;
   }
 
-  // onMount(() => {
-  //   containerEl.addEventListener("mousedown", onMouseDown, { capture: true });
-  // });
+  onMount(() => {
+    const rec = containerEl.getBoundingClientRect();
+    $board.viewPort = {
+      x: rec.x,
+      y: rec.y,
+      w: rec.right - rec.left,
+      h: rec.bottom - rec.top
+    }
+  });
 </script>
 
-{#if false} <!-- todo: add dev toggle -->
-<div style="position: absolute; right: 1ch; top: 1ch; background: darkblue; z-index: 200; color: #fff; padding: 4px; display: flex; gap: 2ch; user-select: none; pointer-events: none;">
-  {#if $settings.DEV_POS}
-    <span
-      >{$board.viewOffset.x} - {$board.viewOffset.y}</span
-    >
-  {/if}
-  <span>{$mode}</span>
-</div>
+{#if Object.values($settings.DEV).includes(true)}
+  <!-- todo: add dev toggle -->
+  <div
+    style="position: absolute; right: 1ch; top: 1ch; background: darkblue; z-index: 200; color: #fff; padding: 4px; display: flex; gap: 2ch; user-select: none; pointer-events: none;"
+  >
+    {#if $settings.DEV?.SHOW_POS}
+      <span>{$board.viewOffset.x} - {$board.viewOffset.y}</span>
+    {/if}
+    {#if $settings.DEV?.SHOW_MODE}
+      <span>{$mode}</span>
+    {/if}
+  </div>
 {/if}
 
 <svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} />
@@ -390,9 +413,8 @@
   bind:this={containerEl}
 >
   <div class="board" style={transformCss}>
-
     {#if $mode === "select" || $mode === "draw"}
-    <div class="selection-rect" style="{selectionCss}"/>
+      <div class="selection-rect" style={selectionCss} />
       <!-- <div id="dragIntercept">
         <div id="selectionRect" style={selectionCss} bind:this={selectionRectEl} />
       </div> -->
