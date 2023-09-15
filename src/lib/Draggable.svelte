@@ -75,6 +75,8 @@
       else {
         pos.y += dragState.offset.y;
       }
+
+      dispatch("dragMove", { pos, offset: dragState.offset });
   }
 
   function onMouseUp(e: MouseEvent) {
