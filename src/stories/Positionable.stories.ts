@@ -4,6 +4,7 @@ import Positionable from "$lib/Positionable.svelte";
 
 const meta: Meta<typeof Positionable> = {
   component: Positionable,
+  title: "Components/Positionable",
   argTypes: {
     pos: {
       x: { control: "number" },
@@ -13,7 +14,7 @@ const meta: Meta<typeof Positionable> = {
       x: { control: "number" },
       y: { control: "number" }
     },
-    z: { control: "number", min: 0 },
+    z: { control: "number", min: 0 }
   },
   args: {
     pos: {
@@ -24,7 +25,7 @@ const meta: Meta<typeof Positionable> = {
       x: 0,
       y: 0
     },
-    z: 0,
+    z: 0
   }
 };
 

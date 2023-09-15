@@ -1,5 +1,6 @@
-import { Meta, Source, ArgTypes } from "@storybook/blocks";
-import * as BoardStorys from "./Board.stories";
+import { Meta, Source, ArgTypes, Canvas, Story } from "@storybook/blocks";
+import * as IntroBoard from "./boards/IntroBoard.stories";
+import * as BoardStories from "./Board.stories";
 import * as PositionableStorys from "./Positionable.stories";
 
 <Meta title="Get Started" />
@@ -7,8 +8,7 @@ import * as PositionableStorys from "./Positionable.stories";
 # Get Started
 
 Tela is a declarative svelte library for creating infinite canvases, positioning elements on them, and handling all canvas related logic like moving elements, dragging, panning etc.
-
-By using tela, the example code below is all you need to get an infinite canvas up and running, position elements on it.
+Using tela, the example code below is all you need to get an infinite canvas up and running, position elements on it.
 
 <Source
   language="jsx"
@@ -18,10 +18,15 @@ By using tela, the example code below is all you need to get an infinite canvas 
     <Positionable pos={{ x: 10, y: 10 }} size={{ x: 400, y: 300 }} z={1}>
       <span>Hello, I am tela.</span>
     </Positionable>
+
+    <Positionable pos={{ x: 200, y: 150 }} size={{ x: 400, y: 300 }} z={1}>
+      <span>Try moving the canvas around with the trackpad or by using META + Left Mouse.</span>
+    </Positionable>
   </Board>
 </main>
 `}
 />
+<Canvas of={IntroBoard.Default} layout="fullscreen"/>
 
 ## How it works.
 
@@ -37,8 +42,9 @@ It can be configured using the `settings` prop, and exposes the `board` store, w
 
 
 todo: story
+{/* <Canvas of={BoardStories.Default} layout="fullscreen"/> */}
 
-<ArgTypes of={BoardStorys} />
+{/* <ArgTypes of={BoardStorys} /> */}
 
 ### Positionable
 
@@ -89,8 +95,13 @@ Some additional classes are added to the body, which can be used to apply stylin
 - `body.panning`
 - `body.selecting`
 
+### Example
+
+
+
 ## Utilities
 
 ### `.tela-ignore`
 
 Add this class to any element inside a board to make it ignore all tela events like dragging, moving etc.
+
