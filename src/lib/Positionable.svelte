@@ -8,6 +8,8 @@
   export let pos: Vec2;
   export let size: Vec2;
   export let z: number = 1;
+  // Culling override
+  export let cull: boolean | undefined = undefined;
 
   const board = getContext<Writable<TBoard>>("board");
   const settings = getContext<Writable<TBoardSettings>>("settings");
@@ -38,7 +40,7 @@
 
 </script>
 
-{#if !$settings.CULL || inView}
+{#if cull === undefined ? (!$settings.CULL || inView) : !cull || inView}
 <svelte:element
   this="div"
   {...$$restProps}
