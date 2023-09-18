@@ -27,7 +27,7 @@
 
 Tela is a declarative svelte library for creating infinite canvases, positioning elements on them, and handling all canvas related logic like moving elements, dragging, panning etc.
 
-To get started, follow the steps below or checkout the [examples](#) to see how tela integrates in a real app.
+To get started, follow the steps below or checkout the [examples](src/routes/examples) under `/src/routes/examples` to see how tela integrates in a real app.
 
 ## Getting Started
 
