@@ -11,7 +11,7 @@
 
     let el: HTMLElement;
 
-    $: transformCss = `transfrom: translate(${$board.viewOffset.x + bounds.pos.x}px, ${$board.viewOffset.y + bounds.pos.y}px); width: ${bounds.size.x}px; height: ${bounds.size.y}px;`;
+    $: transformCss = `transfrom: translate3d(${$board.viewOffset.x + bounds.pos.x}px, ${$board.viewOffset.y + bounds.pos.y}px, 0); width: ${bounds.size.x}px; height: ${bounds.size.y}px;`;
 
 	/*$: positionCss = `left: ${$board.viewOffset.x + bounds.pos.x}px; top: ${
 		$board.viewOffset.y + bounds.pos.y
@@ -35,7 +35,7 @@
 <svelte:element this="div"
   {...$$restProps}
   class="positionable {$$restProps.class}"
-  style="width: {bounds.size.x}px; height: {bounds.size.y}px; transform: translate({bounds.pos.x - $board.viewOffset.x}px, {bounds.pos.y - $board.viewOffset.y}px); {wc ? 'background: lime !important;' : ''}">
+  style="width: {bounds.size.x}px; height: {bounds.size.y}px; transform: translate3d({bounds.pos.x - $board.viewOffset.x}px, {bounds.pos.y - $board.viewOffset.y}px, 0); {wc ? 'background: lime !important;' : ''}">
   <slot/>
 </svelte:element>
 

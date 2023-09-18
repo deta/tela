@@ -14,11 +14,11 @@
   const board = getContext<Writable<TBoard>>("board");
   const settings = getContext<Writable<TBoardSettings>>("settings");
 
-  $: transformCss = `transform: translate(${
+  $: transformCss = `transform: translate3d(${
     $settings.SNAP_TO_GRID ? snapToGrid(pos.x, $settings.GRID_SIZE!) : pos.x
   }px, ${
     $settings.SNAP_TO_GRID ? snapToGrid(pos.y, $settings.GRID_SIZE!) : pos.y
-  }px); width: ${
+  }px, 0); width: ${
     $settings.SNAP_TO_GRID ? snapToGrid(size.x, $settings.GRID_SIZE!) : size.x
   }px; height: ${
     $settings.SNAP_TO_GRID ? snapToGrid(size.y, $settings.GRID_SIZE!) : size.y

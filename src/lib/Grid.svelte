@@ -13,11 +13,11 @@
   // $: transformCss = `transform: translate(${$board.viewOffset.x}px, ${$board.viewOffset.y}px);`;
   $: transformCss = `width: ${100 / $board.zoom}%; height: ${
     100 / $board.zoom
-  }%; transform: translate(-${dotSize}px, -${dotSize}px) translate(${
+  }%; transform: translate3d(-${dotSize}px, -${dotSize}px, 0) translate3d(${
     $board.viewOffset.x - ($board.viewOffset.x % $settings.GRID_SIZE!)
-  }px, ${$board.viewOffset.y - ($board.viewOffset.y % $settings.GRID_SIZE!)}px);`;
+  }px, ${$board.viewOffset.y - ($board.viewOffset.y % $settings.GRID_SIZE!)}px, 0);`;
 
-  $: svgShiftCss = `transform: translate(-${$board.viewOffset.x % $settings.GRID_SIZE!}px, 0px);`;
+  $: svgShiftCss = `transform: translate3d(-${$board.viewOffset.x % $settings.GRID_SIZE!}px, 0px, 0);`;
 </script>
 
 <div class="grid" style={transformCss}>
