@@ -19,69 +19,84 @@
     offset: { x: 0, y: 0 }
   };
 
+  // Utils
+  function posToViewportPos(x: number, y: number) {
+    return {
+      x: x - $board.viewPort.x,
+      y: y - $board.viewPort.y + window.scrollY
+    };
+  }
+
   // UI Handlers
-  function onMouseDown(e: MouseEvent) {
-    if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
+  function onMouseDown(e: MouseEvent | TouchEvent) {
+    const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
+    const { x: clientX, y: clientY } = posToViewportPos(
+      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
+      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY
+    );
+
+    if (hasClassOrParentWithClass(target as HTMLElement, "tela-ignore")) return;
     e.stopPropagation();
     document.body.classList.add("dragging");
-    let cX = e.clientX;
-    let cY = e.clientY;
+    // let cX = e.clientX;
+    // let cY = e.clientY;
     // todo: handle touch
 
-    const x = $settings.SNAP_TO_GRID ? snapToGrid(cX, $settings.GRID_SIZE!) : cX;
-    const y = $settings.SNAP_TO_GRID ? snapToGrid(cY, $settings.GRID_SIZE!) : cY;
+    const x = $settings.SNAP_TO_GRID ? snapToGrid(clientX, $settings.GRID_SIZE!) : clientX;
+    const y = $settings.SNAP_TO_GRID ? snapToGrid(clientY, $settings.GRID_SIZE!) : clientY;
 
     dragState.init = { x, y };
     dragState.curr = { x, y };
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp, { once: true });
+    document.addEventListener("touchmove", onMouseMove);
+    document.addEventListener("touchend", onMouseUp, { once: true });
 
     dispatch("dragStart", { pos });
   }
 
-  function onMouseMove(e: MouseEvent) {
-    let cX = e.clientX;
-    let cY = e.clientY;
+  function onMouseMove(e: MouseEvent | TouchEvent) {
+    const { x: clientX, y: clientY } = posToViewportPos(
+      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
+      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY
+    );
 
     dragState.offset = {
-      x: (cX - dragState.curr.x) / $board.zoom,
-      y: (cY - dragState.curr.y) / $board.zoom
+      x: (clientX - dragState.curr.x) / $board.zoom,
+      y: (clientY - dragState.curr.y) / $board.zoom
     };
 
-    dragState.curr = { x: e.clientX, y: e.clientY };
+    dragState.curr = { x: clientX, y: clientY };
 
-      // todo: optimize setting pos?
+    // todo: optimize setting pos?
 
-      const newX = pos.x + dragState.offset.x;
-      const newY = pos.y + dragState.offset.y;
+    const newX = pos.x + dragState.offset.x;
+    const newY = pos.y + dragState.offset.y;
 
-      if ($settings.BOUNDS?.minX !== null && newX < $settings.BOUNDS!.minX) {
-        pos.x = $settings.BOUNDS!.minX;
-      }
-      else if ($settings.BOUNDS?.maxX !== null && newX + size.x > $settings.BOUNDS!.maxX) {
-        pos.x = $settings.BOUNDS!.maxX - size.x;
-      }
-      else {
-        pos.x += dragState.offset.x;
-      }
+    if ($settings.BOUNDS?.minX !== null && newX < $settings.BOUNDS!.minX) {
+      pos.x = $settings.BOUNDS!.minX;
+    } else if ($settings.BOUNDS?.maxX !== null && newX + size.x > $settings.BOUNDS!.maxX) {
+      pos.x = $settings.BOUNDS!.maxX - size.x;
+    } else {
+      pos.x += dragState.offset.x;
+    }
 
-      if ($settings.BOUNDS?.minY !== null && newY < $settings.BOUNDS!.minY) {
-        pos.y = $settings.BOUNDS!.minY;
-      }
-      else if ($settings.BOUNDS?.maxY !== null && newY + size.y > $settings.BOUNDS!.maxY) {
-        pos.y = $settings.BOUNDS!.maxY - size.y;
-      }
-      else {
-        pos.y += dragState.offset.y;
-      }
+    if ($settings.BOUNDS?.minY !== null && newY < $settings.BOUNDS!.minY) {
+      pos.y = $settings.BOUNDS!.minY;
+    } else if ($settings.BOUNDS?.maxY !== null && newY + size.y > $settings.BOUNDS!.maxY) {
+      pos.y = $settings.BOUNDS!.maxY - size.y;
+    } else {
+      pos.y += dragState.offset.y;
+    }
 
-      dispatch("dragMove", { pos, offset: dragState.offset });
+    dispatch("dragMove", { pos, offset: dragState.offset });
   }
 
-  function onMouseUp(e: MouseEvent) {
+  function onMouseUp(e: MouseEvent | TouchEvent) {
     document.body.classList.remove("dragging");
     document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("touchmove", onMouseMove);
     dispatch("dragEnd", { pos });
   }
 </script>
@@ -91,6 +106,7 @@
   {...$$restProps}
   class="draggable {$$restProps.class || ''}"
   on:mousedown={onMouseDown}
+  on:touchstart|nonpassive={onMouseDown}
 >
   <slot />
 </svelte:element>

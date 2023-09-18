@@ -123,6 +123,7 @@
   function stopDrawing() {
     document.body.classList.remove("drawing");
     document.removeEventListener("mousemove", onMouseMoveDraw);
+    document.removeEventListener("touchmove", onMouseMoveDraw);
     selectState = {
       init: { x: 0, y: 0 },
       curr: { x: 0, y: 0 },
@@ -137,6 +138,7 @@
   function stopPanning() {
     document.body.classList.remove("panning");
     document.removeEventListener("mousemove", onMouseMovePan);
+    document.removeEventListener("touchmove", onMouseMovePan);
     dispatch("panEnd", { offset: $board.viewOffset });
   }
 
@@ -144,10 +146,12 @@
     dispatch("selectStart");
     document.body.classList.add("selecting");
     document.addEventListener("mousemove", onMouseMoveSelect);
+    // document.removeEventListener("touchmove", onMouseMoveSelect);
   }
   function stopSelect() {
     document.body.classList.remove("selecting");
     document.removeEventListener("mousemove", onMouseMoveSelect);
+    // document.removeEventListener("touchmove", onMouseMoveSelect);
   }
 
   // UI Handlers
