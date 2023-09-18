@@ -272,8 +272,10 @@
   }
 
   function onMouseMovePan(e: MouseEvent | TouchEvent) {
-    const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
-    const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
+    const { x: clientX, y: clientY } = posToViewportPos(
+      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
+      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY
+    );
 
     dragState.offset = {
       x: Math.floor(clientX - dragState.curr.x),
@@ -302,6 +304,11 @@
   }
 
   function onMouseMoveSelect(e: MouseEvent) {
+    const { x: clientX, y: clientY } = posToViewportPos(
+      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
+      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY
+    );
+
     selectState.offset = {
       x: -Math.floor(selectState.init.x - selectState.curr.x),
       y: -Math.floor(selectState.init.y - selectState.curr.y)
@@ -322,7 +329,7 @@
       selectState.pos.y = selectState.init.y - selectState.size.y * $board.zoom;
     }
 
-    selectState.curr = { x: e.clientX, y: e.clientY };
+    selectState.curr = { x: clientX, y: clientY };
     dispatch("selectMove", { selectState });
   }
 
