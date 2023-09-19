@@ -2,15 +2,15 @@
 <br />
 <p align="center">
   <a href="https://github.com/deta/tela">
-    <img src="https://github.com/MaximilianHeidenreich/PingBack/blob/main/assets/logo/v2_pingback-logo_deta@1024.png?raw=true" alt="PingBack Logo" width="80" height="80">
+    <img src="https://github.com/MaximilianHeidenreich/PingBack/blob/main/assets/logo/v2_pingback-logo_deta@1024.png?raw=true" alt="Tela Logo" width="80" height="80">
   </a>
 
 <h1 align="center"><i>Tela</i></h1>
 
 <p align="center">
-    A declarative, easy to use, infinite canvas library for svelte.
+    A declarative, easy to use, infinite canvas library for svelte using native DOM elements.
     <br />
-    <a href="https://github.com/deta/tela"><strong>Demo</strong></a> • <a href="https://deta.github.io/tela/?path=/docs/get-started--docs"><strong>Documentation</strong></a>
+    <a href="https://deta.github.io/tela/?path=/docs/tela--docs"><strong>Demo</strong></a> • <a href="https://deta.github.io/tela/?path=/docs/tela--docs"><strong>Documentation</strong></a>
     <br />
     <br />
     <a href="https://github.com/deta/tela/issues">Report Bug</a>
@@ -26,19 +26,23 @@
 ## ⚡️ TL;DR
 
 Tela is a declarative svelte library for creating infinite canvases, positioning elements on them, and handling all canvas related logic like moving elements, dragging, panning etc.
+This is achieved using only native DOM elements so that you can use any existing HTML, CSS, JS component inside a canvas.
 
 To get started, follow the steps below or checkout the [examples](src/routes/examples) under `/src/routes/examples` to see how tela integrates in a real app.
 
 ## Getting Started
 
 Add the package to your project:
+> **‼️ If you are using `npm` the installation might take a very long time for some reason.**
 
 ```bash
-npm i @deta/tela
+npm i deta/tela
 
-pnpm i @∂eta/tela
+pnpm i deta/tela
 
-yarn add @deta/tela
+yarn add deta/tela
+
+bun i deta/tela
 ```
 
 Import the components & setup the board data:
