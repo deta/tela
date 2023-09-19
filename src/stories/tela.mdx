@@ -11,7 +11,7 @@ import { Meta, Source, ArgTypes, Canvas, Story } from "@storybook/blocks";
 <h1 align="center"><i>Tela</i></h1>
 
 <p align="center">
-    A declarative, easy to use, infinite canvas library for svelte.
+    A declarative, easy to use, infinite canvas library for svelte using native DOM elements.
 </p>
 </p>
 <br/>
@@ -22,6 +22,7 @@ import { Meta, Source, ArgTypes, Canvas, Story } from "@storybook/blocks";
 ## ⚡️ TL;DR
 
 Tela is a declarative svelte library for creating infinite canvases, positioning elements on them, and handling all canvas related logic like moving elements, dragging, panning etc.
+This is achieved using only native DOM elements so that you can use any existing HTML, CSS, JS component inside a canvas.
 
 To get started, follow the steps below or checkout the [examples](src/routes/examples) under `/src/routes/examples` to see how tela integrates in a real app.
 
@@ -29,12 +30,16 @@ To get started, follow the steps below or checkout the [examples](src/routes/exa
 
 Add the package to your project:
 
+> **‼️ If you are using `npm` the installation might take a very long time for some reason.**
+
 <Source language="bash" code={`
-npm i @deta/tela
+npm i deta/tela
 
-pnpm i @∂eta/tela
+pnpm i deta/tela
 
-yarn add @deta/tela
+yarn add deta/tela
+
+bun i deta/tela
 `} />
 
 Import the components & setup the board data:
