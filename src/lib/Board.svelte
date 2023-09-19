@@ -19,8 +19,8 @@
         maxX: null,
         minY: null,
         maxY: null,
-        maxZoom: 3,
-        minZoom: 0,
+        minZoom: 0.3,
+        maxZoom: 1,
         limit: "soft",
         ...settings.BOUNDS
       },
@@ -30,7 +30,7 @@
         CHUNK_DBG: false,
         ...settings.DEV
       }
-    });
+    } as IBoardSettings); // hack: fixs optional types
   }
 
   /**

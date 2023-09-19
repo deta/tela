@@ -3,15 +3,15 @@ import type { Vec2, Vec4 } from "./Utils.type.js";
 import type { Writable } from "svelte/store";
 
 export interface IBoardSettings {
-  CAN_DRAW?: boolean;
-  CAN_SELECT?: boolean;
-  CAN_PAN?: boolean;
-  CAN_ZOOM?: boolean;
+  CAN_DRAW: boolean;
+  CAN_SELECT: boolean;
+  CAN_PAN: boolean;
+  CAN_ZOOM: boolean;
 
-  SNAP_TO_GRID?: boolean;
-  GRID_SIZE?: number;
+  SNAP_TO_GRID: boolean;
+  GRID_SIZE: number;
 
-  BOUNDS?: {
+  BOUNDS: {
     minX: number | null;
     maxX: number | null;
     minY: number | null;
@@ -22,10 +22,10 @@ export interface IBoardSettings {
   };
 
   // mostly internal stuff
-  CULL?: boolean;
-  CULL_MARGIN?: number;
-  CHUNK_SIZE?: number;
-  CHUNK_CULL_MARGIN?: number;
+  CULL: boolean;
+  CULL_MARGIN: number;
+  CHUNK_SIZE: number;
+  CHUNK_CULL_MARGIN: number;
 
   // dev stuff
   DEV: {
