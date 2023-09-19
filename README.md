@@ -2,7 +2,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/deta/tela">
-    <img src="https://github.com/MaximilianHeidenreich/PingBack/blob/main/assets/logo/v2_pingback-logo_deta@1024.png?raw=true" alt="Tela Logo" width="80" height="80">
+    <img src="https://github.com/deta/tela/blob/main/dingo.png?raw=true" alt="Tela Logo" width="80" height="80">
   </a>
 
 <h1 align="center"><i>Tela</i></h1>
