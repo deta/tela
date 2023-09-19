@@ -2,7 +2,7 @@ import type { Tweened } from "svelte/motion";
 import type { Vec2, Vec4 } from "./Utils.type.js";
 import type { Writable } from "svelte/store";
 
-export interface TBoardSettings {
+export interface IBoardSettings {
   CAN_DRAW?: boolean;
   CAN_SELECT?: boolean;
   CAN_PAN?: boolean;
@@ -31,16 +31,19 @@ export interface TBoardSettings {
   DEV: {
     SHOW_POS: boolean;
     SHOW_MODE: boolean;
+
+    // Display chunks as colored boxed
+    CHUNK_DBG: boolean;
   };
 }
-export interface BoardState {
+export interface IBoardState {
   viewOffset: { x: Tweened<number>, y: Tweened<number> };
   viewPort: Vec4; // Store viewport position in case container el is not full window
   zoom: Tweened<number>;
   mode: TBoardMode;
 }
-export interface Board {
-  state: Writable<BoardState>;
+export interface IBoard {
+  state: Writable<IBoardState>;
 
   setMode: (mode: TBoardMode) => void;
   panTo: (x: number, y: number, duration?: number, delay?: number) => Promise<any>;
@@ -55,6 +58,6 @@ export type TBoardMode =
   // Used when panTo is invoked
   | "auto-panning"
   | "zoom";
-export interface TBoardState {
+export interface TIBoardState { // todo; kill?
   mode: TBoardMode;
 }

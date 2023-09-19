@@ -2,7 +2,7 @@
   import Board from "$lib/Board.svelte";
   import Positionable from "$lib/Positionable.svelte";
   import Grid from "$lib/Grid.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/index.js";
+  import type { TBoard, IBoardSettings } from "$lib/index.js";
   import { writable } from "svelte/store";
   import { setContext } from "svelte";
 
@@ -12,7 +12,7 @@
 
   const settings = writable({
 
-  } satisfies TBoardSettings);
+  } satisfies IBoardSettings);
 
   const board = writable({
     viewOffset: { x: 0, y: 0 },

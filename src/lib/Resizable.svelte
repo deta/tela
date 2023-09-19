@@ -3,12 +3,12 @@
   import type { Vec2 } from "./types/Utils.type.js";
   import { hasClassOrParentWithClass, snapToGrid } from "./utils.js";
   import type { Writable } from "svelte/store";
-  import type { TBoard, TBoardSettings } from "./types/Board.type.js";
+  import type { TBoard, IBoardSettings } from "./types/Board.type.js";
 
   export let size: Vec2;
 
   const board = getContext<Writable<TBoard>>("board");
-  const settings = getContext<Writable<TBoardSettings>>("settings");
+  const settings = getContext<Writable<IBoardSettings>>("settings");
 
   const dispatch = createEventDispatcher();
 

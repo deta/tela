@@ -2,14 +2,14 @@
   import Board from "$lib/Board.svelte";
   import Grid from "$lib/Grid.svelte";
   import Note from "./Note.svelte";
-  import type { TBoard, TBoardSettings, Vec2 } from "$lib/index.js";
+  import type { TBoard, IBoardSettings, Vec2 } from "$lib/index.js";
   import { writable } from "svelte/store";
 
   const settings = writable({
     SNAP_TO_GRID: true,
     CAN_ZOOM: false,
     GRID_SIZE: 13
-  } satisfies TBoardSettings);
+  } satisfies IBoardSettings);
 
   const board = writable({
     viewOffset: { x: 0, y: 0 },

@@ -2,13 +2,13 @@
   import Board from "$lib/Board.svelte";
   import Draggable from "$lib/Draggable.svelte";
   import Positionable from "$lib/Positionable.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/types/Board.type.js";
+  import type { TBoard, IBoardSettings } from "$lib/types/Board.type.js";
   import type { Vec2 } from "$lib/types/Utils.type.js";
   import { writable } from "svelte/store";
 
   const settings = {
 
-  } satisfies TBoardSettings;
+  } satisfies IBoardSettings;
 
   const board = writable<TBoard>({
     viewOffset: { x: 0, y: 0 },

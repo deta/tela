@@ -4,7 +4,7 @@
   import Draggable from "$lib/Draggable.svelte";
   import Grid from "$lib/Grid.svelte";
   import type { IPositionable } from "$lib/Positionable.svelte";
-  import type { Board as TBoard } from "$lib/types/Board.type.js";
+  import type { IBoard as TBoard } from "$lib/types/Board.type.js";
   import type { Vec2 } from "$lib/types/Utils.type.js";
   import { writable } from "svelte/store";
 

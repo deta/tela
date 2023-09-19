@@ -4,14 +4,15 @@
   import Draggable from "$lib/Draggable.svelte";
   import Grid from "$lib/Grid.svelte";
   import type { IPositionable } from "$lib/Positionable.svelte";
-  import type { Board as TBoard } from "$lib/types/Board.type.js";
+  import type { IBoard as TBoard } from "$lib/types/Board.type.js";
   import type { Vec2 } from "$lib/types/Utils.type.js";
   import { writable, type Writable } from "svelte/store";
 
   let settings = createSettings({
     DEV: {
       SHOW_POS: true,
-      SHOW_MODE: true
+      SHOW_MODE: true,
+      CHUNK_DBG: true
     }
   });
 
@@ -35,7 +36,7 @@
         posX: x,
         posY: y,
         width: 120,
-        height: 120
+        height: 420
       })
       return s;
     });
@@ -50,39 +51,36 @@
 
   //const foo = writable<{ key: string; pos: Vec2<number>; size: Vec2<number> }[]>(cards);
 
-  function onDragMove(e: CustomEvent<{ key: string; posX: number; posY: number }>) {
+  // function onDragMove(e: CustomEvent<{ key: string; posX: number; posY: number }>) {
 
-    // foo.update((cards) => {
-    //   const i = cards.findIndex((c) => c.key === e.detail.key);
-    //   cards[i].pos = { x: e.detail.posX, y: e.detail.posY };
-    //   return cards;
-    // });
-  }
+  //   // foo.update((cards) => {
+  //   //   const i = cards.findIndex((c) => c.key === e.detail.key);
+  //   //   cards[i].pos = { x: e.detail.posX, y: e.detail.posY };
+  //   //   return cards;
+  //   // });
+  // }
 </script>
 
 <main>
   <Board {settings} {board} chunks={cards} let:key let:posX let:posY>
     <svelte:fragment slot="meta">
-      <Grid dotColor="black" dotOpacitposY={30} dotSize={1} />
+      <Grid dotColor="black" dotOpacity={30} dotSize={1} />
     </svelte:fragment>
 
-    <!-- {#key foo} -->
     {#await import("$lib/Positionable.svelte") then c}
-      <svelte:component this={c.default} {key} {posX} {posY} width={400} height={200} class="card">
-        {key}
+      <svelte:component this={c.default} {key} {posX} {posY} width={500} height={400} class="card">
         <Draggable
-          {key}
-          {posX}
-          {posY}
-          size={{ x: 400, y: 400 }}
+          {key} {posX} {posY}
+          size={{ x: 400, y: 800 }}
           class="header"
-          on:dragMove={onDragMove}
+          on:dragMove
         >
           Header
         </Draggable>
         <div class="content" style="background-color: {randCol()};">
           <!-- {i} @-->
-          {posX}, {posY}
+          <!-- {posX}, {posY} -->
+          <!-- <img style="object-fit: cover; position: absolute; top: 0; left: 0; buttom: 0; right: 0;" src="https://media1.tenor.com/images/0f4f7bf9bdb1fa58eff808b979e74201/tenor.gif?itemid=13450622" alt=""> -->
         </div>
       </svelte:component>
     {/await}
@@ -103,7 +101,6 @@
           {posX}, {posY}
         </div>
       </Positionable> -->
-    <!-- {/key} -->
   </Board>
 </main>
 

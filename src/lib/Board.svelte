@@ -3,7 +3,7 @@
    * Creates a board settings store with given values or defaults as fallback.
    * @param settings The settings to override.
    */
-  export function createSettings(settings: DeepPartial<TBoardSettings>): Writable<TBoardSettings> {
+  export function createSettings(settings: DeepPartial<IBoardSettings>): Writable<IBoardSettings> {
     return writable({
       CAN_ZOOM: true,
       SNAP_TO_GRID: false,
@@ -27,6 +27,7 @@
       DEV: {
         SHOW_POS: false,
         SHOW_MODE: false,
+        CHUNK_DBG: false,
         ...settings.DEV
       }
     });
@@ -61,7 +62,7 @@
    * @param delay
    */
   export function zoomTo(
-    state: BoardState,
+    state: IBoardState,
     zoom: number,
     duration: number = 400,
     delay: number = 0
@@ -76,7 +77,7 @@
       zoom: number;
       mode: TBoardMode;
     }>
-  ): Board {
+  ): IBoard {
     initialState.viewOffset = {
       // @ts-ignore we just override to not create a new object
       x: tweened(initialState.viewOffset?.x === undefined ? 0 : initialState.viewOffset?.x, {
@@ -103,7 +104,7 @@
     });
     initialState.mode = initialState.mode !== undefined ? initialState.mode : "draw";
 
-    const state = writable<BoardState>(initialState as unknown as BoardState); // hack: types
+    const state = writable<IBoardState>(initialState as unknown as IBoardState); // hack: types
 
     return {
       state,
@@ -126,7 +127,7 @@
 
 <script lang="ts">
   import { derived, get, writable, type Writable } from "svelte/store";
-  import type { Board, BoardState, TBoardMode, TBoardSettings } from "./types/Board.type.ts";
+  import type { IBoard, IBoardState, TBoardMode, IBoardSettings } from "./types/Board.type.ts";
   import type { DeepPartial, Vec2, Vec4 } from "./types/Utils.type.ts";
   import { clamp, debounce, hasClassOrParentWithClass } from "./utils.js";
   import { createEventDispatcher, onDestroy, onMount, setContext } from "svelte";
@@ -135,8 +136,8 @@
   import Chunk from "./Chunk.svelte";
   import type { IPositionable } from "./Positionable.svelte";
 
-  export let settings: Writable<TBoardSettings>;
-  export let board: Board; // "exported" with custom properties
+  export let settings: Writable<IBoardSettings>;
+  export let board: IBoard; // "exported" with custom properties
   //export let positionables: { key: string; pos: Vec2<number>; size: Vec2<number> }[];
 
     // Store the contents as a map of chunks

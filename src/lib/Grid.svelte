@@ -1,14 +1,14 @@
 <script lang="ts">
   import { getContext } from "svelte";
   import type { Writable } from "svelte/store";
-  import type { Board, TBoardSettings } from "./types/Board.type.js";
+  import type { IBoard, IBoardSettings } from "./types/Board.type.js";
 
   export let dotColor = "black";
   export let dotOpacity = 30;
   export let dotSize = 1;
 
-  const board = getContext<Board>("board");
-  const settings = getContext<Writable<TBoardSettings>>("settings");
+  const board = getContext<IBoard>("board");
+  const settings = getContext<Writable<IBoardSettings>>("settings");
 
   const state = board.state;
   let viewX = $state.viewOffset.x;

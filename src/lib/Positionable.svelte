@@ -8,10 +8,10 @@
   }
 </script>
 <script lang="ts">
-  import { getContext, onMount } from "svelte";
+  import { getContext, onMount, setContext } from "svelte";
   import type { Writable } from "svelte/store";
   import type { Vec2, Vec4 } from "./types/Utils.type.js";
-  import type { Board, TBoardSettings } from "./types/Board.type.js";
+  import type { IBoard, IBoardSettings } from "./types/Board.type.js";
   import { isBrowser, snapToGrid } from "./utils.js";
   import type { Tweened } from "svelte/motion";
 
@@ -24,8 +24,8 @@
   // Culling override
   export let cull: boolean | undefined = undefined;
 
-  const board = getContext<Board>("board");
-  const settings = getContext<Writable<TBoardSettings>>("settings");
+  const board = getContext<IBoard>("board");
+  const settings = getContext<Writable<IBoardSettings>>("settings");
 
   let state = board.state;
   $: ({ viewPort } = $state);

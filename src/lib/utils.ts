@@ -1,3 +1,7 @@
+import type { Writable } from "svelte/store";
+import type { TBoardMode } from "./types/Board.type.ts";
+import type { Vec2 } from "./types/Utils.type.ts";
+
 export const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
 export const clamp = (a: number, min = 0, max = 1) => Math.min(max, Math.max(min, a));
 export const invlerp = (x: number, y: number, a: number) => clamp((a - x) / (y - x));
@@ -21,6 +25,10 @@ export function snapToGrid(value: number, snap: number): number {
   return Math.round(value / snap) * snap;
 }
 
+export function posInsideAutoPan(pos: Vec2, board: Writable<TBoardMode>) {
+
+}
+
 const debounceMap = new Map();
 export function debounce(id: string, ms: number, callback: () => void) {
   if (debounceMap.has(id)) clearTimeout(debounceMap.get(id));
@@ -30,4 +38,8 @@ export function debounce(id: string, ms: number, callback: () => void) {
 
 export function isBrowser() {
   return typeof window !== "undefined";
+}
+
+export function randomCssColor(alpha = 1) {
+  return `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${alpha})`;
 }

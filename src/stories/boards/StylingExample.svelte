@@ -1,10 +1,10 @@
 <script lang="ts">
   import Board from "$lib/Board.svelte";
   import Positionable from "$lib/Positionable.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/index.js";
+  import type { TBoard, IBoardSettings } from "$lib/index.js";
   import { writable } from "svelte/store";
 
-  const settings = writable({} satisfies TBoardSettings);
+  const settings = writable({} satisfies IBoardSettings);
   const board = writable({} satisfies TBoard);
 </script>
 

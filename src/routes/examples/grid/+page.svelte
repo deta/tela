@@ -3,13 +3,13 @@
   import Draggable from "$lib/Draggable.svelte";
   import Grid from "$lib/Grid.svelte";
   import Positionable from "$lib/Positionable.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/index.js";
+  import type { TBoard, IBoardSettings } from "$lib/index.js";
   import { writable } from "svelte/store";
 
   const settings = writable({
     SNAP_TO_GRID: true,
     GRID_SIZE: 13
-  } satisfies TBoardSettings);
+  } satisfies IBoardSettings);
 
   const board = writable({
     viewOffset: { x: 0, y: 0 },

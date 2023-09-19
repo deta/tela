@@ -2,11 +2,11 @@
   import Board from "$lib/Board.svelte";
   import Positionable from "$lib/Positionable.svelte";
   import Grid from "$lib/Grid.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/index.js";
+  import type { TBoard, IBoardSettings } from "$lib/index.js";
   import { writable } from "svelte/store";
   import { setContext } from "svelte";
 
-  export let settings: TBoardSettings;
+  export let settings: IBoardSettings;
   export let board: TBoard;
 
   const _settings = writable(settings);

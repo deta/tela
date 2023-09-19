@@ -2,7 +2,7 @@
   import { createEventDispatcher, getContext } from "svelte";
   import type { Vec2 } from "./types/Utils.type.js";
   import type { Writable } from "svelte/store";
-  import type { Board, TBoardSettings } from "./types/Board.type.js";
+  import type { IBoard, IBoardSettings } from "./types/Board.type.js";
   import { hasClassOrParentWithClass, snapToGrid } from "./utils.js";
 
   export let key: string;
@@ -12,11 +12,11 @@
 
   const dispatch = createEventDispatcher();
 
-  const board = getContext<Board>("board");
-  const settings = getContext<Writable<TBoardSettings>>("settings");
-    // const key = getContext<string>("key");
+  const board = getContext<IBoard>("board");
+  const settings = getContext<Writable<IBoardSettings>>("settings");
+  // const key = getContext<string>("key");
 
-      let htmlEl: HTMLDivElement;
+  let htmlEl: HTMLDivElement;
   let state = board.state;
   $: ({ viewPort } = $state);
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
@@ -100,10 +100,12 @@
     }
 
     dispatch("dragMove", { key, posX, posY, offset: dragState.offset });
-        htmlEl.dispatchEvent(new CustomEvent('dragMove', {
-            detail: { key, posX, posY, offset: dragState.offset },
-            bubbles: true
-        }));
+    htmlEl.dispatchEvent(
+      new CustomEvent("dragMove", {
+        detail: { key, posX, posY, offset: dragState.offset },
+        bubbles: true
+      })
+    );
   }
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
@@ -121,6 +123,6 @@
   on:mousedown={onMouseDown}
   on:touchstart|nonpassive={onMouseDown}
   bind:this={htmlEl}
-    >
+>
   <slot />
 </svelte:element>
