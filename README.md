@@ -32,17 +32,17 @@ To get started, follow the steps below or checkout the [examples](src/routes/exa
 
 ## Getting Started
 
-Add the package to your project:
-> **‼️ If you are using `npm` the installation might take a very long time for some reason.**
+Add the package to your project using the package manager of your choice:
+> **❗️ Currently, don't forget to manually build tela as installing it from github does only ship the source files. Also, if you are using `npm` the installation might take a very long time for some reason.**
 
 ```bash
-npm i deta/tela
+bun i deta/tela && cd ./node_modules/@deta/tela && bun i && bun run package
 
-pnpm i deta/tela
+pnpm i deta/tela && cd ./node_modules/@deta/tela && pnpm i --no-optional && pnpm run package
 
-yarn add deta/tela
+yarn add deta/tela && cd ./node_modules/@deta/tela && yarn install --ignore-optional && yarn run package
 
-bun i deta/tela
+npm i deta/tela && cd ./node_modules/@deta/tela && npm i --no-optional && npm run package
 ```
 
 Import the components & setup the board data:
