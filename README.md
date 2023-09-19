@@ -49,9 +49,9 @@ Import the components & setup the board data:
 
 ```html
 <script lang="ts">
-  import Board from "$lib/Board.svelte";
-  import Positionable from "$lib/Positionable.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/index.js";
+  import Board from "@deta/tela/Board.svelte";
+  import Positionable from "@deta/tela/Positionable.svelte";
+  import type { TBoard, TBoardSettings } from "@deta/tela/index.js";
   import { writable } from "svelte/store";
 
   const settings = writable({} satisfies TBoardSettings);
@@ -99,9 +99,9 @@ In this example we also wrap the board in an element that takes up the whole scr
 
 ```html
 <script lang="ts">
-  import Board from "$lib/Board.svelte";
-  import Positionable from "$lib/Positionable.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/index.js";
+  import Board from "@deta/tela/Board.svelte";
+  import Positionable from "@deta/tela/Positionable.svelte";
+  import type { TBoard, TBoardSettings } from "@deta/tela/index.js";
   import { writable } from "svelte/store";
 
   const settings = writable({} satisfies TBoardSettings); // <- used to configure the board
@@ -198,9 +198,9 @@ The example below illustrates how a Positionable component can be used to place 
 
 ```html
 <script lang="ts">
-  import Board from "$lib/Board.svelte";
-  import Positionable from "$lib/Positionable.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/index.js";
+  import Board from "@deta/tela/Board.svelte";
+  import Positionable from "@deta/tela/Positionable.svelte";
+  import type { TBoard, TBoardSettings } from "@deta/tela/index.js";
   import { writable } from "svelte/store";
 
   const settings = writable({} satisfies TBoardSettings); // <- used to configure the board
@@ -230,9 +230,9 @@ If you want to dynamically render multiple elements on the board, you can simply
 
 ```html
 <script lang="ts">
-  import Board from "$lib/Board.svelte";
-  import Positionable from "$lib/Positionable.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/index.js";
+  import Board from "@deta/tela/Board.svelte";
+  import Positionable from "@deta/tela/Positionable.svelte";
+  import type { TBoard, TBoardSettings } from "@deta/tela/index.js";
   import { writable } from "svelte/store";
 
   const settings = writable({} satisfies TBoardSettings); // <- used to configure the board
@@ -273,10 +273,10 @@ A draggable element can be used inside of a Positionable element to enable movin
 
 ```html
 <script lang="ts">
-  import Board from "$lib/Board.svelte";
-  import Positionable from "$lib/Positionable.svelte";
-  import Draggable from "$lib/Draggable.svelte";
-  import type { TBoard, TBoardSettings } from "$lib/index.js";
+  import Board from "@deta/tela/Board.svelte";
+  import Positionable from "@deta/tela/Positionable.svelte";
+  import Draggable from "@deta/tela/Draggable.svelte";
+  import type { TBoard, TBoardSettings } from "@deta/tela/index.js";
   import { writable } from "svelte/store";
 
   const settings = writable({} satisfies TBoardSettings); // <- used to configure the board
