@@ -118,10 +118,32 @@
         });
       },
       panTo: (x: number, y: number, duration = 400, delay = 0) => {
-        return panTo(get(state).viewOffset, x, y, duration, delay);
+        state.update(s => {
+          s.mode = "auto-panning";
+          return s;
+        })
+        const p = panTo(get(state).viewOffset, x, y, duration, delay);
+        p.then(() => {
+          state.update(s => {
+            s.mode = "draw";
+            return s;
+          })
+        })
+        return p;
       },
       zoomTo: (zoom: number, duration = 400, delay = 0) => {
-        return zoomTo(get(state), zoom, duration, delay);
+        state.update(s => {
+          s.mode = "auto-zooming";
+          return s;
+        })
+        const p = zoomTo(get(state), zoom, duration, delay);
+        p.then(() => {
+          state.update(s => {
+            s.mode = "draw";
+            return s;
+          })
+        })
+        return p;
       }
     };
   }
@@ -277,7 +299,7 @@
       e.stopPropagation();
       if (!$settings.CAN_ZOOM) return;
 
-      board.setMode("zoom");
+      $state.mode = "zoom";
 
       // todo: fix relative to bounding element box not screen pos
       const absoluteMouseXOld = $viewX + e.clientX / $zoom;
@@ -292,12 +314,17 @@
       const offsetX = absoluteMouseXOld - absoluteMouseXNew;
       const offsetY = absoluteMouseYOld - absoluteMouseYNew;
 
-      board.panTo($viewX + offsetX, $viewY + offsetY, 0, 0);
-      board.zoomTo(newZoom, 0, 0);
+      $state.viewOffset.x.set($viewX + offsetX, { duration: 0 });
+      $state.viewOffset.y.set($viewY + offsetY, { duration: 0 });
+      $state.zoom.set(newZoom, { duration: 0 });
+
+      debounce("tela_zoomModeReset", 50, () => $state.mode = "draw");
     } else {
       if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
       e.preventDefault();
       e.stopPropagation();
+
+      $state.mode = "panning";
 
       const deltaX = e.deltaX / $zoom;
       const deltaY = e.deltaY / $zoom;
@@ -313,11 +340,11 @@
         $settings.BOUNDS!.maxY !== null ? $settings.BOUNDS!.maxY - window.innerHeight : Infinity
       );
 
-      board.panTo(boundX, boundY, 0, 0);
-      debounce("remove_trackpad_panning", 100, () => document.body.classList.remove("panning"));
+      $state.viewOffset.x.set(boundX, { duration: 0 });
+      $state.viewOffset.y.set(boundY, { duration: 0 });
+
+      debounce("tela_trackpadPanModeReset", 60, () => $state.mode = "draw");
     }
-    dispatch("zoomEnd", { zoom: $zoom });
-    //transformCss = `transform: translate(${-$viewX}px, ${-$viewY}px) scale(${$zoom});`;
   }
 
   function onKeyDown(e: KeyboardEvent) {
@@ -502,18 +529,8 @@
     //transformCss = `transform: translate(${-$viewX}px, ${-$viewY}px) scale(${$zoom});`;
   }
 
-  // let chunks = new Map<string, { key: string; pos: { x: number; y: number } }[]>();
-  // positionables.forEach((e) => {
-  //   const xChunk = Math.floor(e.pos.x / $settings.CHUNK_SIZE);
-  //   const yChunk = Math.floor(e.pos.y / $settings.CHUNK_SIZE);
-  //   const key = `${xChunk}:${yChunk}`;
-  //   if (!chunks.has(key)) {
-  //     chunks.set(key, []);
-  //   }
-  //   chunks.get(key)!.push(e);
-  // });
-  //console.debug("Handling n positionables:", Array.from(chunks.values).reduce((a, b) => a + b.length, 0));
-  console.debug("Handling n chunks:", chunks.size);
+  //console.debug("Handling n positionables:", Array.from($chunks.values()).reduce((a, b) => a + b.length, 0));
+  console.debug("Handling n chunks:", $chunks.size);
 
   onMount(() => {
     const rec = containerEl.getBoundingClientRect();

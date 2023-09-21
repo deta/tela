@@ -52,13 +52,20 @@ export interface IBoard {
 }
 
 export type TBoardMode =
+  // Default mode
   | "draw"
+  // Used when select key is held down
   | "select"
+  // Used when pan key is held down
   | "pan"
+  // Used when panning
   | "panning"
   // Used when panTo is invoked
   | "auto-panning"
-  | "zoom";
+  // Used when zoom key is held down
+  | "zoom"
+  // Used when zoomTo is invoked
+  | "auto-zooming";
 export interface TIBoardState { // todo; kill?
   mode: TBoardMode;
 }
