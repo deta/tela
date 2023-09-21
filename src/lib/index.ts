@@ -2,7 +2,11 @@
 // export default { Board };
 
 export { default as Board } from "./Board.svelte";
-export { createBoard, createSettings } from "./Board.svelte";
+export { createBoard, createSettings, moveToStackingTop } from "./Board.svelte";
+
+export { default as Chunked } from "./Chunked.svelte";
+export { default as Chunk } from "./Chunk.svelte";
+
 export { default as Positionable } from "./Positionable.svelte";
 export type { IPositionable } from "./Positionable.svelte";
 export { default as Draggable } from "./Draggable.svelte";
