@@ -14,7 +14,7 @@
 
   const board = getContext<IBoard>("board");
   const settings = getContext<Writable<IBoardSettings>>("settings");
-  // const key = getContext<string>("key");
+  const stackingOrder = getContext<Writable<string[]>>("stackingOrder");
 
   let htmlEl: HTMLDivElement;
   let state = board.state;
@@ -61,6 +61,9 @@
     document.addEventListener("mouseup", onMouseUp, { once: true });
     document.addEventListener("touchmove", onMouseMove);
     document.addEventListener("touchend", onMouseUp, { once: true });
+
+    // Move to stack top.
+    moveToStackingTop(stackingOrder, key);
 
     dispatch("dragStart", { x: posX, y: posY });
   }

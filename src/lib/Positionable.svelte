@@ -7,6 +7,7 @@
     height: number;
   }
 </script>
+
 <script lang="ts">
   import { getContext, onMount, setContext } from "svelte";
   import type { Writable } from "svelte/store";
@@ -20,25 +21,21 @@
   export let posY: number;
   export let width: number;
   export let height: number;
-  export let z: number = 1;
-  // Culling override
-  export let cull: boolean | undefined = undefined;
+  // export let z: number | undefined = undefined;
 
   const board = getContext<IBoard>("board");
   const settings = getContext<Writable<IBoardSettings>>("settings");
+  const stackingOrder = getContext<Writable<string>>("stackingOrder");
 
   let state = board.state;
   $: ({ viewPort } = $state);
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ zoom } = $state);
-  $: chunkPos = {
-    x: Math.abs(posX) % $settings.CHUNK_SIZE,
-    y: Math.abs(posY) % $settings.CHUNK_SIZE
-  };
-  // const state = board.state;
-  // const viewX = $state.viewOffset.x;
-  // const viewY = $state.viewOffset.y;
-  // const zoom = $state.zoom;
+  $: z = $stackingOrder.indexOf(key);
+  // $: chunkPos = {
+  //   x: Math.abs(posX) % $settings.CHUNK_SIZE,
+  //   y: Math.abs(posY) % $settings.CHUNK_SIZE
+  // };
 
   $: transformCss = `transform: translate3d(${
     $settings.SNAP_TO_GRID ? snapToGrid(chunkPos.x, $settings.GRID_SIZE!) : chunkPos.x

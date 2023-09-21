@@ -123,6 +123,19 @@
       }
     };
   }
+
+  export function moveToStackingTop(stack: Writable<string[]>, key: string) {
+    const l = get(stack).length;
+    console.time(`[StackingOrder-update :: n = ${l}]`); // todo: debug only
+    stack.update(s => {
+      const i = s.indexOf(key);
+      if (i === -1) return s;
+      s.splice(i, 1);
+      s.push(key);
+      return s;
+    });
+    console.timeEnd(`[StackingOrder-update :: n = ${l}]`);
+  }
 </script>
 
 <script lang="ts">
@@ -149,6 +162,7 @@
 
   setContext("board", board); // todo: fix
   setContext("settings", settings);
+  setContext("stackingOrder", stackingOrder);
 
   let state = board.state;
   let mode = derived(state, (e) => e.mode);
