@@ -250,13 +250,9 @@
   // Utils
   function posToViewportPos(x: number, y: number) {
     return {
-      x: $viewX / $zoom + x,
-      y: $viewY / $zoom + y //y - $viewY + window.scrollY // todo: fix
+      x: $viewX + x / $zoom,
+      y: $viewY + y / $zoom//y - $viewY + window.scrollY // todo: fix
     };
-  }
-  function startDrawing() {
-    document.body.classList.add("drawing");
-    dispatch("drawStart");
   }
   function stopDrawing() {
     document.body.classList.remove("drawing");
@@ -306,7 +302,7 @@
       const absoluteMouseYOld = $viewY + e.clientY / $zoom;
 
       const delta = e.deltaY;
-      const newZoom = clamp($zoom - delta / 500, $settings.BOUNDS?.minZoom, $settings.BOUNDS?.maxZoom);
+      const newZoom = clamp($zoom - delta / 500, $settings.BOUNDS?.minZoom!, $settings.BOUNDS?.maxZoom!);
 
       const absoluteMouseXNew = $viewX + e.clientX / newZoom;
       const absoluteMouseYNew = $viewY + e.clientY / newZoom;
@@ -375,18 +371,15 @@
     if (hasClassOrParentWithClass(target as HTMLElement, "tela-ignore")) return;
     if ($mode === "pan" || (e as TouchEvent).targetTouches?.length === 1) {
       //mode.set("panning");
+      // todo: look into
     }
 
     if ($mode === "draw") {
       e.stopPropagation();
-      startDrawing();
 
-      const pX = $viewX + clientX;
-      const pY = $viewY + clientY;
-
-      selectState.init = { x: pX, y: pY };
-      selectState.curr = { x: pX, y: pY };
-      selectState.pos = { x: pX, y: pY };
+      selectState.init = { x: clientX, y: clientY };
+      selectState.curr = { x: clientX, y: clientY };
+      selectState.pos = { x: clientX, y: clientY };
       selectState.size = { x: 0, y: 0 };
 
       document.addEventListener("mousemove", onMouseMoveDraw);
@@ -492,17 +485,17 @@
     selectState.pos.x = selectState.init.x;
     selectState.pos.y = selectState.init.y;
 
-    selectState.size.x = selectState.offset.x / $zoom;
-    selectState.size.y = selectState.offset.y / $zoom;
+    selectState.size.x = selectState.offset.x;
+    selectState.size.y = selectState.offset.y;
 
-    // if (selectState.size.x < 0) {
-    //   selectState.size.x = Math.abs(selectState.offset.x / $zoom);
-    //   selectState.pos.x = selectState.init.x - selectState.size.x //* $zoom;
-    // }
-    // if (selectState.size.y < 0) {
-    //   selectState.size.y = Math.abs(selectState.offset.y / $zoom);
-    //   selectState.pos.y = selectState.init.y - selectState.size.y //* $zoom;
-    // }
+    if (selectState.size.x < 0) {
+      selectState.size.x = Math.abs(selectState.offset.x);
+      selectState.pos.x = selectState.init.x - selectState.size.x;
+    }
+    if (selectState.size.y < 0) {
+      selectState.size.y = Math.abs(selectState.offset.y);
+      selectState.pos.y = selectState.init.y - selectState.size.y;
+    }
 
     selectState.curr = { x: clientX, y: clientY };
   }
@@ -516,7 +509,7 @@
       stopPanning();
     } else if ($mode === "select") {
       stopSelect();
-      dispatch("selectEnd", { selectState });
+      dispatch("selectEnd", { selectionArea: { pos: selectState.pos, size: selectState.size } }); // todo: copy object to prevent nulling
       selectState = {
         init: { x: 0, y: 0 },
         curr: { x: 0, y: 0 },
@@ -525,8 +518,6 @@
         size: { x: 0, y: 0 }
       };
     }
-
-    //transformCss = `transform: translate(${-$viewX}px, ${-$viewY}px) scale(${$zoom});`;
   }
 
   //console.debug("Handling n positionables:", Array.from($chunks.values()).reduce((a, b) => a + b.length, 0));
