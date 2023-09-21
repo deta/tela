@@ -17,7 +17,7 @@
   import type { Tweened } from "svelte/motion";
 
   export let positionable: IPositionable;
-  export let z: number | undefined = undefined;
+  export let zIndex: number | undefined = undefined;
   let { key, posX, posY, width, height } = positionable;
 
   const board = getContext<IBoard>("board");
@@ -28,8 +28,7 @@
   $: ({ viewPort } = $state);
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ zoom } = $state);
-  // $: z = $stackingOrder.indexOf(key) <= -1 ? 1 : $stackingOrder.indexOf(key) + 1; // todo: kill +1?
-  $: z = z !== undefined ? z :$stackingOrder.indexOf(key);
+  $: z = zIndex !== undefined ? zIndex : $stackingOrder.indexOf(key);
 
   $: transformCss = `transform: translate3d(${
     $settings.SNAP_TO_GRID ? snapToGrid(posX, $settings.GRID_SIZE!) : posX
