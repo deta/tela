@@ -98,7 +98,7 @@
     position: absolute;
     top: 0;
     left: 0;
-    z-index: 0;
+    z-index: -1;
     /* will-change: transform; */
 
     /* transform-style: preserve-3d;
