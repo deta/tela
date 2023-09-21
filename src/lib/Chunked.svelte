@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext, onMount } from "svelte";
+  import { createEventDispatcher, getContext, onMount } from "svelte";
   import Chunk from "./Chunk.svelte";
   import { derived, get, writable, type Writable } from "svelte/store";
   import type { IPositionable } from "./Positionable.svelte";
@@ -9,6 +9,7 @@
   export let lazy = true;
 
   let element: HTMLDivElement;
+  const dispatch = createEventDispatcher();
 
   const board = getContext<IBoard>("board");
   const settings = getContext<Writable<IBoardSettings>>("settings");
@@ -17,7 +18,6 @@
 
   let state = board.state;
   $: ({ viewPort } = $state);
-  // $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: viewX = $state.viewOffset.x;
   $: viewY = $state.viewOffset.y;
   $: ({ zoom } = $state);
@@ -43,6 +43,31 @@
     }
   });
 
+  $: {
+    ($viewChunkX || $viewChunkY);
+    dispatch("warmChunksChanged", { warmChunks: calcWarmChunks() });
+  }
+
+
+
+  /**
+   * Calculated all chunks which are "warm" based on the loading settings.
+   * Warm chunks should be loaded in the client app to be ready for display.
+   */
+  function calcWarmChunks() {
+    const warmChunks = new Set<string>();
+    const viewChunkW = Math.ceil(viewPort.w / $settings.CHUNK_SIZE / $zoom);
+    const viewChunkH = Math.ceil(viewPort.h / $settings.CHUNK_SIZE / $zoom);
+
+    for (let x = $viewChunkX - $settings.CHUNK_WARM_MARGIN; x < $viewChunkX + viewChunkW + $settings.CHUNK_WARM_MARGIN; x++) {
+      for (let y = $viewChunkY - $settings.CHUNK_WARM_MARGIN; y < $viewChunkY + viewChunkH + $settings.CHUNK_WARM_MARGIN; y++) {
+        warmChunks.add(`${x}:${y}`);
+      }
+    }
+
+    return warmChunks;
+  }
+
   function chunkInView(xChunk: number, yChunk: number, viewChunkX: number, viewChunkY: number) {
     return (
       xChunk + 1 + $settings.CHUNK_CULL_MARGIN / $settings.CHUNK_SIZE >= viewChunkX &&
@@ -56,7 +81,7 @@
 
   // Handlers
   function onPositionableChunkChanged(e: CustomEvent<{ key: string, initChunk: { x: number, y: number }, newChunk: { x: number, y: number }, newPos: { x: number, y: number } }>) {
-    const { key, initChunk, newChunk, newPos } = e.detail;
+    const { key, initChunk, currChunk, newPos } = e.detail;
 
     chunks.update(cks => {
       const initCk = cks.get(`${initChunk.x}:${initChunk.y}`);
@@ -66,7 +91,7 @@
       let positionable: IPositionable | undefined;
       initCk.update(ck => {
         positionable = ck.find(p => p.key === key);
-        ck = ck.filter(p => p.key !== key);
+        if (positionable) ck = ck.filter(p => p.key !== positionable!.key);
         return ck;
       });
       if (!positionable) return cks; // todo: warn? dont rly need cuz if !chunked positionable should be fine.
@@ -79,10 +104,10 @@
       positionable.posY = newPos.y;
 
       // Add positionable to new chunk.
-      if (!cks.has(`${newChunk.x}:${newChunk.y}`)) {
-        cks.set(`${newChunk.x}:${newChunk.y}`, writable([]));
+      if (!cks.has(`${currChunk.x}:${currChunk.y}`)) {
+        cks.set(`${currChunk.x}:${currChunk.y}`, writable([]));
       }
-      cks.get(`${newChunk.x}:${newChunk.y}`)!.update(s => {
+      cks.get(`${currChunk.x}:${currChunk.y}`)!.update(s => {
         s.push(positionable!);
         return s;
       });
@@ -91,7 +116,10 @@
     });
   }
 
-  onMount(() => element.addEventListener("positionableChunkChanged", onPositionableChunkChanged))
+  onMount(() => element.addEventListener("positionableChanged", onPositionableChunkChanged))
+  onMount(() => {
+    dispatch("warmChunksChanged", { warmChunks: calcWarmChunks() });
+  });
 </script>
 
 <div class="chunked" bind:this={element}>
