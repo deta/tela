@@ -59,59 +59,42 @@
     const { key, initChunk, newChunk, newPos } = e.detail;
 
     chunks.update(cks => {
-      const oldChunk = get(cks.get(`${initChunk.x}:${initChunk.y}`)!);
-      const p = oldChunk.find(p => p.key === key);
-      p!.posX = newPos.x;
-      p!.posY = newPos.y;
-      (cks.get(`${initChunk.x}:${initChunk.y}`)!).update(mmm => {
-        mmm = mmm.filter(p => p.key !== key);
-        return mmm;
+      const initCk = cks.get(`${initChunk.x}:${initChunk.y}`);
+      if (!initCk) return cks; // todo: warn? dont rly need cuz if !chunked positionable should be fine.
+
+      // Extract positionable & remove init chunk if empty.
+      let positionable: IPositionable | undefined;
+      initCk.update(ck => {
+        positionable = ck.find(p => p.key === key);
+        ck = ck.filter(p => p.key !== key);
+        return ck;
       });
-      if (get(cks.get(`${initChunk.x}:${initChunk.y}`)!).length <= 0) {
+      if (!positionable) return cks; // todo: warn? dont rly need cuz if !chunked positionable should be fine.
+      if (get(initCk).length <= 0) {
         cks.delete(`${initChunk.x}:${initChunk.y}`);
       }
 
+      // Update positionable.
+      positionable.posX = newPos.x;
+      positionable.posY = newPos.y;
+
+      // Add positionable to new chunk.
       if (!cks.has(`${newChunk.x}:${newChunk.y}`)) {
         cks.set(`${newChunk.x}:${newChunk.y}`, writable([]));
       }
-      console.log("cks", cks)
       cks.get(`${newChunk.x}:${newChunk.y}`)!.update(s => {
-        s.push(p!);
+        s.push(positionable!);
         return s;
       });
+
       return cks;
     });
-
-    // const oldChunk = get($chunks.get(`${initChunk.x}:${initChunk.y}`)!);
-    // const positionable = oldChunk.find((p) => p.key === key);
-    // if (!positionable) throw "positionable not found in chunk"; // todo: throw handle error
-    // if (!$chunks.has(`${newChunk.x}:${newChunk.y}`)) {
-    //   $chunks.set(`${newChunk.x}:${newChunk.y}`, writable([positionable]));
-    // }
-    // else {
-    //   $chunks.get(`${newChunk.x}:${newChunk.y}`)!.update((s) => {
-    //     s.push(positionable);
-    //     return s;
-    //   });
-    // }
-    // if (oldChunk.length - 1 <= 0) {
-    //   $chunks.delete(`${initChunk.x}:${initChunk.y}`);
-    // }
-    // else {
-    //   $chunks.get(`${initChunk.x}:${initChunk.y}`)!.update((s) => {
-    //     s.splice(s.indexOf(positionable), 1);
-    //     return s;
-    //   });
-    // }
-    for (let [k,v] of $chunks.entries()) {
-      console.log("chunk", k, get(v))
-    }
   }
 
   onMount(() => element.addEventListener("positionableChunkChanged", onPositionableChunkChanged))
 </script>
 
-<div style="display: content;" bind:this={element}>
+<div class="chunked" bind:this={element}>
 <!-- {#key $chunksUpdate} -->
   {#each $chunks.entries() as [k, v] (k)}
     {@const cX = parseInt(k.split(":")[0])}
@@ -151,3 +134,9 @@
   {/each}
 <!-- {/key} -->
 </div>
+
+<style>
+  .chunked {
+    display: contents;
+  }
+</style>
