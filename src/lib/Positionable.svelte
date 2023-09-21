@@ -16,11 +16,8 @@
   import { isBrowser, snapToGrid } from "./utils.js";
   import type { Tweened } from "svelte/motion";
 
-  export let key: string;
-  export let posX: number;
-  export let posY: number;
-  export let width: number;
-  export let height: number;
+  export let positionable: IPositionable;
+  let { key, posX, posY, width, height } = positionable;
 
   const board = getContext<IBoard>("board");
   const settings = getContext<Writable<IBoardSettings>>("settings");

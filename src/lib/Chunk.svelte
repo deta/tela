@@ -82,6 +82,7 @@
     {#each $positionables as positionable, i (positionable.key)}
       {#if positionableInView(positionable.posX, positionable.posY, positionable.width, positionable.height, $viewX, $viewY)}
         <slot
+          item={positionable}
           key={positionable.key}
           x={positionable.posX}
           y={positionable.posY}

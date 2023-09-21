@@ -108,13 +108,9 @@
           positionables={v}
           chunkX={cX}
           chunkY={cY}
-          let:key
-          let:x
-          let:y
-          let:width
-          let:height
+          let:item
         >
-          <slot {key} posX={x} posY={y} width={width} height={height} />
+          <slot {item}/>
         </svelte:component>
       {/await}
       {:else}
@@ -123,11 +119,9 @@
             positionables={v}
             chunkX={cX}
             chunkY={cY}
-            let:key
-            let:x
-            let:y
+            let:item
           >
-            <slot {key} posX={x} posY={y} width={width} height={height}/>
+            <slot {item}/>
           </Chunk>
       {/if}
     {/if}
