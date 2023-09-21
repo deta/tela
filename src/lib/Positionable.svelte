@@ -31,10 +31,6 @@
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ zoom } = $state);
   $: z = $stackingOrder.indexOf(key) <= -1 ? 1 : $stackingOrder.indexOf(key) + 1; // todo: kill +1?
-  // $: chunkPos = {
-  //   x: Math.abs(posX) % $settings.CHUNK_SIZE,
-  //   y: Math.abs(posY) % $settings.CHUNK_SIZE
-  // };
 
   $: transformCss = `transform: translate3d(${
     $settings.SNAP_TO_GRID ? snapToGrid(posX, $settings.GRID_SIZE!) : posX
@@ -43,20 +39,6 @@
   }px; height: ${
     $settings.SNAP_TO_GRID ? snapToGrid(height, $settings.GRID_SIZE!) : height
   }px; z-index: ${z};`;
-
-  // function inView(viewX: number, viewY: number, viewPort: Vec4) {
-  //   return (
-  //     $zoom > 0.6 &&
-  //     // posX + $settings.CULL_MARGIN >= viewX &&
-  //     // posY + $settings.CULL_MARGIN >= viewY
-  //     posX + width >= viewX &&
-  //     posY + height >= viewY &&
-  //     posX + width - $settings.CULL_MARGIN < viewX + viewPort.w / $zoom &&
-  //     posY + height - $settings.CULL_MARGIN < viewY + viewPort.h / $zoom
-  //     // xChunk * $settings.CHUNK_SIZE - $settings.CHUNK_CULL_MARGIN < $viewX + viewPort.w / $zoom &&
-  //     // yChunk * $settings.CHUNK_SIZE - $settings.CHUNK_CULL_MARGIN < $viewY + viewPort.h / $zoom
-  //   );
-  // }
 
   onMount(() => {
     document.addEventListener("dragMove", (e) => {

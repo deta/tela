@@ -76,6 +76,7 @@
       viewPort: Vec4;
       zoom: number;
       mode: TBoardMode;
+      selection: Writable<Set<string>>;
     }>
   ): IBoard {
     initialState.viewOffset = {
@@ -103,6 +104,7 @@
       easing: cubicOut
     });
     initialState.mode = initialState.mode !== undefined ? initialState.mode : "draw";
+    initialState.selection = initialState.selection !== undefined ? initialState.selection : writable(new Set());
 
     const state = writable<IBoardState>(initialState as unknown as IBoardState); // hack: types
 
@@ -126,7 +128,7 @@
 
   export function moveToStackingTop(stack: Writable<string[]>, key: string) {
     const l = get(stack).length;
-    console.time(`[StackingOrder-update :: n = ${l}]`); // todo: debug only
+    console.time(`[StackingOrder-update :: n = ${l}]`); // todo: make debug only
     stack.update(s => {
       const i = s.indexOf(key);
       if (i === -1) return s;
@@ -155,14 +157,12 @@
 
   const dispatch = createEventDispatcher();
 
-  setContext("board", board); // todo: fix
+  setContext("board", board);
   setContext("settings", settings);
   setContext("stackingOrder", stackingOrder);
 
   let state = board.state;
   let mode = derived(state, (e) => e.mode);
-  // let viewX = $state.viewOffset.x;
-  // let viewY = $state.viewOffset.y;
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ viewPort } = $state);
   $: ({ zoom } = $state);
@@ -194,9 +194,9 @@
   //   $settings.SNAP_TO_GRID ? snapToGrid(Math.round(selectState.size.y + 0.5), $settings.GRID_SIZE!) : Math.round(selectState.size.y)
   // }px;`;
 
-  $: selectionCss = `transform: translate3d(${selectState.pos.x}px, ${
+  $: selectionCss = `transform: translate(${selectState.pos.x}px, ${
     selectState.pos.y
-  }px, 0); width: ${Math.round(selectState.size.x)}px; height: ${Math.round(
+  }px); width: ${Math.round(selectState.size.x)}px; height: ${Math.round(
     selectState.size.y
   )}px;`;
 
@@ -532,7 +532,7 @@
     style="position: absolute; right: 1ch; top: 1ch; background: darkblue; z-index: 200; color: #fff; padding: 4px; display: flex; gap: 2ch; user-select: none; pointer-events: none;"
   >
     {#if $settings.DEV?.SHOW_POS}
-      <!-- <span>{$viewChunkX} // {$viewChunkY}</span> -->
+      <span>{Math.floor($viewX / $settings.CHUNK_SIZE)} // {Math.floor($viewY / $settings.CHUNK_SIZE)}</span>
       <span>{$viewX} // {$viewY} // {$zoom}x</span>
     {/if}
     {#if $settings.DEV?.SHOW_MODE}
@@ -545,13 +545,12 @@
 
 <div
   class="container"
-  style={modeCursorCss}
   on:mousedown={onMouseDown}
   on:touchstart|nonpassive={onMouseDown}
   on:wheel|nonpassive={onWheel}
   bind:this={containerEl}
 >
-  <div class="board" style={transformCss}>
+  <div class="board mode-{$mode}" style={transformCss}>
     {#if $mode === "select" || $mode === "draw"}
       <div class="selection-rect" style={selectionCss} />
       <!-- <div id="dragIntercept">

@@ -41,6 +41,7 @@ export interface IBoardState {
   viewPort: Vec4; // Store viewport position in case container el is not full window
   zoom: Tweened<number>;
   mode: TBoardMode;
+  selection: Writable<Set<string>>;
 }
 export interface IBoard {
   state: Writable<IBoardState>;
