@@ -4,6 +4,7 @@
   import Chunked from "$lib/Chunked.svelte";
   import Draggable from "$lib/Draggable.svelte";
   import Grid from "$lib/Grid.svelte";
+  import Positionable from "$lib/Positionable.svelte";
   import type { IPositionable } from "$lib/Positionable.svelte";
   import type { IBoard as TBoard } from "$lib/types/Board.type.js";
   import type { Vec2 } from "$lib/types/Utils.type.js";
@@ -48,11 +49,29 @@
     });
   }
   console.warn("Created", n, "cards");
+
+  const regularCard = {
+    key: "asf",
+    posX: 0,
+    posY: 0,
+    width: 400,
+    height: 300,
+  };
+  $stackingOrder.push(regularCard.key);
 </script>
 
 <main>
   <Board {settings} {board} {chunks} {stackingOrder}>
     <Grid dotColor="black" dotOpacity={30} dotSize={1} />
+
+    <Positionable key={regularCard.key} posX={regularCard.posX} posY={regularCard.posY} width={regularCard.width} height={regularCard.height}>
+      <Draggable key={regularCard.key} bind:posX={regularCard.posX} bind:posY={regularCard.posY} width={regularCard.width} height={regularCard.height} size={{x:400,y:200}} class="header">
+        frag me
+      </Draggable>
+      <div class="content" style="background-color: {randomCssColor()};">
+            regular positionable
+      </div>
+    </Positionable>
 
     <Chunked {chunks} let:key let:posX let:posY let:width let:height>
       {#await import("$lib/Positionable.svelte") then c}

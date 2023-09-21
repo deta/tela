@@ -21,7 +21,6 @@
   export let posY: number;
   export let width: number;
   export let height: number;
-  // export let z: number | undefined = undefined;
 
   const board = getContext<IBoard>("board");
   const settings = getContext<Writable<IBoardSettings>>("settings");
@@ -31,7 +30,7 @@
   $: ({ viewPort } = $state);
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ zoom } = $state);
-  $: z = $stackingOrder.indexOf(key);
+  $: z = $stackingOrder.indexOf(key) <= -1 ? 1 : $stackingOrder.indexOf(key) + 1; // todo: kill +1?
   // $: chunkPos = {
   //   x: Math.abs(posX) % $settings.CHUNK_SIZE,
   //   y: Math.abs(posY) % $settings.CHUNK_SIZE
