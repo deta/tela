@@ -11,8 +11,11 @@
 
       CULL: true,
       CULL_MARGIN: 200,
+
       CHUNK_SIZE: 2000,
       CHUNK_CULL_MARGIN: 2000,
+      CHUNK_WARM_MARGIN: 1,
+
       ...settings,
       BOUNDS: {
         minX: null,
@@ -48,6 +51,7 @@
     duration: number = 400,
     delay: number = 0
   ) {
+    // todo: add gta pan mode
     return Promise.all([
       viewOffset.x.set(x, { duration, delay }),
       viewOffset.y.set(y, { duration, delay })
@@ -174,7 +178,7 @@
 
   export let settings: Writable<IBoardSettings>;
   export let board: IBoard; // "exported" with custom properties
-  export let chunks: Writable<Map<string, Writable<IPositionable[]>>> = writable(new Map());
+  //export let chunks: Writable<Map<string, Writable<IPositionable[]>>> = writable(new Map());
   export let stackingOrder: Writable<string[]>;
 
   const dispatch = createEventDispatcher();
@@ -222,18 +226,6 @@
     selectState.size.y
   )}px;`;
 
-  $: modeCursorCss = `cursor: ${
-    $mode === "draw"
-      ? "crosshair"
-      : $mode === "select"
-      ? "default"
-      : $mode === "pan"
-      ? "grab"
-      : $mode === "panning"
-      ? "grabbing"
-      : "crosshair"
-  };`;
-
   // if ($settings.BOUNDS?.minX !== null && $viewX < $settings.BOUNDS!.minX) {
   //   $viewX = $settings.BOUNDS!.minX;
   // }
@@ -255,22 +247,9 @@
     };
   }
   function stopDrawing() {
-    document.body.classList.remove("drawing");
     document.removeEventListener("mousemove", onMouseMoveDraw);
-    document.removeEventListener("touchmove", onMouseMoveDraw);
-    selectState = {
-      init: { x: 0, y: 0 },
-      curr: { x: 0, y: 0 },
-      offset: { x: 0, y: 0 },
-      pos: { x: 0, y: 0 },
-      size: { x: 0, y: 0 }
-    };
-  }
-  function startPanning() {
-    document.body.classList.add("panning");
   }
   function stopPanning() {
-    document.body.classList.remove("panning");
     document.removeEventListener("mousemove", onMouseMovePan);
     document.removeEventListener("touchmove", onMouseMovePan);
     dispatch("panEnd", { offset: $state.viewOffset });
@@ -278,12 +257,10 @@
 
   function startSelect() {
     dispatch("selectStart");
-    document.body.classList.add("selecting");
     document.addEventListener("mousemove", onMouseMoveSelect);
     // document.removeEventListener("touchmove", onMouseMoveSelect);
   }
   function stopSelect() {
-    document.body.classList.remove("selecting");
     document.removeEventListener("mousemove", onMouseMoveSelect);
     // document.removeEventListener("touchmove", onMouseMoveSelect);
   }
@@ -345,10 +322,9 @@
 
   function onKeyDown(e: KeyboardEvent) {
     if (e.shiftKey) {
-      board.panTo(Math.random() * 2000, Math.random() * 2000);
-      //mode.set("select");
+      $state.mode = "select";
     } else if (e.metaKey) {
-      //mode.set("pan");
+      $state.mode = "pan";
     }
   }
 
@@ -357,7 +333,7 @@
       $mode === "draw" && stopDrawing();
       ($mode === "pan" || $mode === "panning") && stopPanning();
       $mode === "select" && stopSelect();
-      //mode.set("draw");
+      $state.mode = "draw";
     }
   }
 
@@ -370,7 +346,7 @@
 
     if (hasClassOrParentWithClass(target as HTMLElement, "tela-ignore")) return;
     if ($mode === "pan" || (e as TouchEvent).targetTouches?.length === 1) {
-      //mode.set("panning");
+      $state.mode = "panning";
       // todo: look into
     }
 
@@ -384,9 +360,8 @@
 
       document.addEventListener("mousemove", onMouseMoveDraw);
       document.addEventListener("mouseup", onMouseUp, { once: true });
-    } else if ($mode === "panning") {
+    } else if ($mode === "panning") { // Todo: fix panning
       e.stopPropagation();
-      startPanning();
 
       dragState.init = { x: clientX, y: clientY };
       dragState.curr = { x: clientX, y: clientY };
@@ -433,12 +408,8 @@
       $settings.BOUNDS!.maxY !== null ? $settings.BOUNDS!.maxY - window.innerHeight : Infinity
     );
 
-    // $board.viewOffset = {
-    //   x: boundX, //$viewX - dragState.offset.x,
-    //   y: boundY //$viewY - dragState.offset.y
-    // };
-
-    //transformCss = `transform: translate(${-$viewX}px, ${-$viewY}px) scale(${$zoom});`;
+    $state.viewOffset.x.set(boundX, { duration: 0 });
+    $state.viewOffset.y.set(boundY, { duration: 0 });
   }
 
   function onMouseMoveSelect(e: MouseEvent) {
@@ -502,26 +473,27 @@
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
     if ($mode === "draw") {
+      document.removeEventListener("mousemove", onMouseMoveDraw);
+      document.removeEventListener("touchmove", onMouseMoveDraw);
       dispatch("drawEnd", { selection: { pos: selectState.pos, size: selectState.size } });
-      stopDrawing();
     } else if ($mode === "panning") {
       $mode = "pan";
       stopPanning();
     } else if ($mode === "select") {
       stopSelect();
       dispatch("selectEnd", { selectionArea: { pos: selectState.pos, size: selectState.size } }); // todo: copy object to prevent nulling
-      selectState = {
+    }
+    selectState = {
         init: { x: 0, y: 0 },
         curr: { x: 0, y: 0 },
         offset: { x: 0, y: 0 },
         pos: { x: 0, y: 0 },
         size: { x: 0, y: 0 }
       };
-    }
   }
 
   //console.debug("Handling n positionables:", Array.from($chunks.values()).reduce((a, b) => a + b.length, 0));
-  console.debug("Handling n chunks:", $chunks.size);
+  //console.debug("Handling n chunks:", $chunks.size);
 
   onMount(() => {
     const rec = containerEl.getBoundingClientRect();

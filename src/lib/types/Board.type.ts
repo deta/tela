@@ -24,8 +24,11 @@ export interface IBoardSettings {
   // mostly internal stuff
   CULL: boolean;
   CULL_MARGIN: number;
+
+  // Chunking
   CHUNK_SIZE: number;
   CHUNK_CULL_MARGIN: number;
+  CHUNK_WARM_MARGIN: number;
 
   // dev stuff
   DEV: {
