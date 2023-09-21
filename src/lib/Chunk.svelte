@@ -50,7 +50,11 @@
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ zoom } = $state);
 
-  $: cssStyle = `transform: translate(${chunkX * $settings.CHUNK_SIZE}px, ${chunkY * $settings.CHUNK_SIZE}px); width: ${$settings.CHUNK_SIZE}px; height: ${$settings.CHUNK_SIZE}px; ${$settings.DEV.CHUNK_DBG ? `background-color: ${randomCssColor(0.5)};` : ''}`;
+  $: cssStyle = `transform: translate(${chunkX * $settings.CHUNK_SIZE}px, ${
+    chunkY * $settings.CHUNK_SIZE
+  }px); width: ${$settings.CHUNK_SIZE}px; height: ${$settings.CHUNK_SIZE}px; ${
+    $settings.DEV.CHUNK_DBG ? `background-color: ${randomCssColor(0.5)};` : ""
+  }`;
 
   function positionableInView(
     posX: number,
@@ -61,21 +65,20 @@
     vY: number
   ) {
     return (
-      posX + width + $settings.CULL_MARGIN > vX &&
-      posY + height + $settings.CULL_MARGIN > vY &&
-      posX - $settings.CULL_MARGIN < vX + viewPort.w / $zoom &&
-      posY - $settings.CULL_MARGIN < vY + viewPort.h / $zoom
+      posX + width + $settings.CULL_MARGIN >= vX &&
+      posY + height + $settings.CULL_MARGIN >= vY &&
+      posX - $settings.CULL_MARGIN <= vX + viewPort.w / $zoom &&
+      posY - $settings.CULL_MARGIN <= vY + viewPort.h / $zoom
     );
   }
 </script>
 
-<div
-  class="chunk"
-  style="{cssStyle}"
->
-  <span style="font-size: 4rem;">{`${chunkX} : ${chunkY}`}</span>
-  {$viewX}
-  {#if $zoom > 0.2}
+<div class="chunk" style={cssStyle}>
+  {#if $settings.DEV.CHUNK_DBG}
+    <span style="font-size: 4rem;">{`${chunkX} : ${chunkY}`}</span>
+  {/if}
+</div>
+{#if $zoom > 0.2} <!-- todo: make cfg val -->
     {#each $positionables as positionable, i (positionable.key)}
       {#if positionableInView(positionable.posX, positionable.posY, positionable.width, positionable.height, $viewX, $viewY)}
         <slot
@@ -88,14 +91,18 @@
       {/if}
     {/each}
   {/if}
-</div>
 
 <style>
   .chunk {
     position: absolute;
     top: 0;
     left: 0;
-    z-index: 10;
-    will-change: transform;
+    z-index: 0;
+    /* will-change: transform; */
+
+    /* transform-style: preserve-3d;
+    backface-visibility: hidden;
+    -webkit-transform-style: preserve-3d;
+-webkit-backface-visibility: hidden; */
   }
 </style>

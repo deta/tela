@@ -143,20 +143,15 @@
   import type { IBoard, IBoardState, TBoardMode, IBoardSettings } from "./types/Board.type.ts";
   import type { DeepPartial, Vec2, Vec4 } from "./types/Utils.type.ts";
   import { clamp, debounce, hasClassOrParentWithClass } from "./utils.js";
-  import { createEventDispatcher, onDestroy, onMount, setContext } from "svelte";
+  import { createEventDispatcher, onMount, setContext } from "svelte";
   import { tweened, type Tweened } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
-  import Chunk from "./Chunk.svelte";
   import type { IPositionable } from "./Positionable.svelte";
 
   export let settings: Writable<IBoardSettings>;
   export let board: IBoard; // "exported" with custom properties
-  //export let positionables: { key: string; pos: Vec2<number>; size: Vec2<number> }[];
-
-    // Store the contents as a map of chunks
-    // number: composit chunk position
-    // Array<IPositionable>: positionables in chunk
-  export let chunks: Map<string, Writable<IPositionable[]>> = new Map();
+  export let chunks: Writable<Map<string, Writable<IPositionable[]>>> = writable(new Map());
+  export let stackingOrder: Writable<string[]>;
 
   const dispatch = createEventDispatcher();
 
@@ -166,27 +161,10 @@
 
   let state = board.state;
   let mode = derived(state, (e) => e.mode);
-  let viewX = $state.viewOffset.x;
-  let viewY = $state.viewOffset.y;
+  // let viewX = $state.viewOffset.x;
+  // let viewY = $state.viewOffset.y;
+  $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ viewPort } = $state);
-  let prevViewChunkX = 0;
-  let prevViewChunkY = 0;
-  let viewChunkX = writable(0);
-  let viewChunkY = writable(0);
-  let _viewChunkX = derived(viewX, (e) => Math.floor($viewX / $settings.CHUNK_SIZE));
-  let _viewChunkY = derived(viewY, (e) => Math.floor($viewY / $settings.CHUNK_SIZE));
-  _viewChunkX.subscribe((v) => {
-    if (prevViewChunkX !== v) {
-      prevViewChunkX = v;
-      viewChunkX.set(v);
-    }
-  });
-  _viewChunkY.subscribe((v) => {
-    if (prevViewChunkY !== v) {
-      prevViewChunkY = v;
-      viewChunkY.set(v);
-    }
-  });
   $: ({ zoom } = $state);
 
   let containerEl: HTMLDivElement;
@@ -251,7 +229,7 @@
   function posToViewportPos(x: number, y: number) {
     return {
       x: $viewX / $zoom + x,
-      y: $viewY / $zoom + y //y - $viewY + window.scrollY
+      y: $viewY / $zoom + y //y - $viewY + window.scrollY // todo: fix
     };
   }
   function startDrawing() {
@@ -306,7 +284,7 @@
       const absoluteMouseYOld = $viewY + e.clientY / $zoom;
 
       const delta = e.deltaY;
-      const newZoom = clamp($zoom - delta / 500, 0.03, 1.9);
+      const newZoom = clamp($zoom - delta / 500, $settings.BOUNDS?.minZoom, $settings.BOUNDS?.maxZoom);
 
       const absoluteMouseXNew = $viewX + e.clientX / newZoom;
       const absoluteMouseYNew = $viewY + e.clientY / newZoom;
@@ -537,22 +515,6 @@
   //console.debug("Handling n positionables:", Array.from(chunks.values).reduce((a, b) => a + b.length, 0));
   console.debug("Handling n chunks:", chunks.size);
 
-  function chunkInView(xChunk: number, yChunk: number, viewChunkX: number, viewChunkY: number) {
-    return (
-      // xChunk + $settings.CHUNK_CULL_MARGIN / $settings.CHUNK_SIZE >= viewChunkX &&
-      // yChunk + $settings.CHUNK_CULL_MARGIN / $settings.CHUNK_SIZE >= viewChunkY &&
-      // xChunk * $settings.CHUNK_SIZE - $settings.CHUNK_CULL_MARGIN < $viewX + viewPort.w / $zoom &&
-      // yChunk * $settings.CHUNK_SIZE - $settings.CHUNK_CULL_MARGIN < $viewY + viewPort.h / $zoom
-      xChunk + 1 + $settings.CHUNK_CULL_MARGIN / $settings.CHUNK_SIZE > viewChunkX &&
-      yChunk + 1 + $settings.CHUNK_CULL_MARGIN / $settings.CHUNK_SIZE > viewChunkY &&
-      xChunk * $settings.CHUNK_SIZE - $settings.CHUNK_SIZE - $settings.CHUNK_CULL_MARGIN < $viewX + viewPort.w / $zoom &&
-      yChunk * $settings.CHUNK_SIZE - $settings.CHUNK_SIZE - $settings.CHUNK_CULL_MARGIN < $viewY + viewPort.h / $zoom
-
-    );
-  }
-
-  const ckCmp = import("./Chunk.svelte");
-
   onMount(() => {
     const rec = containerEl.getBoundingClientRect();
     $state.viewPort = {
@@ -570,7 +532,7 @@
     style="position: absolute; right: 1ch; top: 1ch; background: darkblue; z-index: 200; color: #fff; padding: 4px; display: flex; gap: 2ch; user-select: none; pointer-events: none;"
   >
     {#if $settings.DEV?.SHOW_POS}
-      <span>{$viewChunkX} // {$viewChunkY}</span>
+      <!-- <span>{$viewChunkX} // {$viewChunkY}</span> -->
       <span>{$viewX} // {$viewY} // {$zoom}x</span>
     {/if}
     {#if $settings.DEV?.SHOW_MODE}
@@ -599,49 +561,7 @@
 
     <slot name="meta" />
 
-    {#each chunks.entries() as [k, v] (k)}
-      {@const cX = parseInt(k.split(":")[0])}
-      {@const cY = parseInt(k.split(":")[1])}
-      {#if chunkInView(cX, cY, $viewChunkX, $viewChunkY)}
-        {#await ckCmp}
-        {:then c}
-        <svelte:component this={c.default}
-          {board}
-          positionables={v}
-          chunkX={parseInt(k.split(":")[0])}
-          chunkY={parseInt(k.split(":")[1])}
-          let:key
-          let:x
-          let:y
-          let:width
-          let:height>
-          <slot {key} posX={x} posY={y} {width} {height}/>
-        </svelte:component>
-        {/await}
-        <!-- <Chunk
-        {board}
-          positionables={v}
-          chunkX={parseInt(k.split(":")[0])}
-          chunkY={parseInt(k.split(":")[1])}
-          let:key
-          let:x
-          let:y
-        >
-          <slot {key} posX={x} posY={y} />
-        </Chunk> -->
-      {/if}
-      <!-- {#if isChunkInView(parseInt(k.split(":")[0]), parseInt(k.split(":")[1]), $viewChunkX, $viewChunkY)} -->
-      <!-- {#if (parseInt(k.split(":")[0]) * CHUNK_SIZE) > ($viewChunkX)}
-      <div class="chunk" style="will-change: transform; position: absolute; z-index:10; transform: translate({parseInt(k.split(":")[0]) * CHUNK_SIZE}px, {parseInt(k.split(":")[1]) * CHUNK_SIZE}px); width: {CHUNK_SIZE}px; height: {CHUNK_SIZE}px; background-color: {randCol()};">
-        <span style="font-size: 4rem;">{`${parseInt(k.split(":")[0])} : ${parseInt(k.split(":")[1])}`}</span>
-        {#if $zoom > 0.4}
-        {#each v as positionable, i (positionable.key)}
-          <slot x={positionable.pos.x} y={positionable.pos.y}/>
-        {/each}
-        {/if}
-      </div>
-    {/if} -->
-    {/each}
+    <slot/>
   </div>
 </div>
 
@@ -652,12 +572,6 @@
 
     overflow: hidden;
     /* overscroll-behavior: contain; */
-  }
-  .chunk {
-    /* transform-style: preserve-3d;
-    backface-visibility: hidden;
-    -webkit-transform-style: preserve-3d;
--webkit-backface-visibility: hidden; */
   }
   .board {
     position: relative;

@@ -1,11 +1,13 @@
 <script lang="ts">
   import Board, { createBoard, createSettings } from "$lib/Board.svelte";
   import { absToChunkIndex } from "$lib/Chunk.svelte";
+  import Chunked from "$lib/Chunked.svelte";
   import Draggable from "$lib/Draggable.svelte";
   import Grid from "$lib/Grid.svelte";
   import type { IPositionable } from "$lib/Positionable.svelte";
   import type { IBoard as TBoard } from "$lib/types/Board.type.js";
   import type { Vec2 } from "$lib/types/Utils.type.js";
+  import { randomCssColor } from "$lib/utils.js";
   import { writable, type Writable } from "svelte/store";
 
   let settings = createSettings({
@@ -19,88 +21,57 @@
   let board: TBoard = createBoard({});
 
   // let cards: { key: string; pos: Vec2<number>; size: Vec2<number> }[] = [];
-  let cards = new Map<string, Writable<IPositionable[]>>();
+  let chunks = writable(new Map<string, Writable<IPositionable[]>>());
 
-  const n = 30000;
-  const spread = 150; //400;
+  let stackingOrder = writable<string[]>([]);
+
+  const n = 2;
+  const spread = 0.9; //400;
   for (let i = 0; i < n; i++) {
     const x = Math.random() * 200 * spread;
     const y = Math.random() * 200 * spread;
 
     const [chunkX, chunkY] = absToChunkIndex(x, y, $settings.CHUNK_SIZE!);
 
-    cards.has(`${chunkX}:${chunkY}`) || cards.set(`${chunkX}:${chunkY}`, writable([]));
-    cards.get(`${chunkX}:${chunkY}`)!.update(s => {
+    $chunks.has(`${chunkX}:${chunkY}`) || $chunks.set(`${chunkX}:${chunkY}`, writable([]));
+    $chunks.get(`${chunkX}:${chunkY}`)!.update(s => {
+      let key = crypto.randomUUID();
       s.push({
-        key: `${x}-${y}`,
+        key,
         posX: x,
         posY: y,
-        width: 120,
-        height: 420
+        width: 420,
+        height: 220
       })
+      $stackingOrder.push(key);
       return s;
     });
-    console.warn("Created", n, "cards");
   }
-  const randCol = () => {
-    let r = Math.floor(Math.random() * 256); // Random between 0-255
-    let g = Math.floor(Math.random() * 256); // Random between 0-255
-    let b = Math.floor(Math.random() * 256); // Random between 0-255
-    return "rgba(" + r + "," + g + "," + b + ", 0.8)";
-  };
-
-  //const foo = writable<{ key: string; pos: Vec2<number>; size: Vec2<number> }[]>(cards);
-
-  // function onDragMove(e: CustomEvent<{ key: string; posX: number; posY: number }>) {
-
-  //   // foo.update((cards) => {
-  //   //   const i = cards.findIndex((c) => c.key === e.detail.key);
-  //   //   cards[i].pos = { x: e.detail.posX, y: e.detail.posY };
-  //   //   return cards;
-  //   // });
-  // }
+  console.warn("Created", n, "cards");
 </script>
 
 <main>
-  <Board {settings} {board} chunks={cards} let:key let:posX let:posY>
-    <svelte:fragment slot="meta">
-      <Grid dotColor="black" dotOpacity={30} dotSize={1} />
-    </svelte:fragment>
+  <Board {settings} {board} {chunks} {stackingOrder}>
+    <Grid dotColor="black" dotOpacity={30} dotSize={1} />
 
-    {#await import("$lib/Positionable.svelte") then c}
-      <svelte:component this={c.default} {key} {posX} {posY} width={500} height={400} class="card">
-        <Draggable
-          {key} {posX} {posY}
-          size={{ x: 400, y: 800 }}
-          class="header"
-          on:dragMove
-        >
-          Header
-        </Draggable>
-        <div class="content" style="background-color: {randCol()};">
-          <!-- {i} @-->
-          <!-- {posX}, {posY} -->
-          <!-- <img style="object-fit: cover; position: absolute; top: 0; left: 0; buttom: 0; right: 0;" src="https://media1.tenor.com/images/0f4f7bf9bdb1fa58eff808b979e74201/tenor.gif?itemid=13450622" alt=""> -->
-        </div>
-      </svelte:component>
-    {/await}
-    <!-- <Positionable {key} {posX} {posY} width={400} height={200} class="card">
-        {key}
-        <Draggable
-          {key}
-          {posX}
-          {posY}
-          size={{ x: 400, y: 400 }}
-          class="header"
-          on:dragMove={onDragMove}
-        >
-          Header
-        </Draggable>
-        <div class="content" style="background-color: {randCol()};">
-          <!-- {i} @
-          {posX}, {posY}
-        </div>
-      </Positionable> -->
+    <Chunked {chunks} let:key let:posX let:posY let:width let:height>
+      {#await import("$lib/Positionable.svelte") then c}
+        <svelte:component this={c.default} {key} {posX} {posY} {width} {height} class="card">
+          <Draggable
+            {key} {posX} {posY}
+            size={{ x: 400, y: 800 }}
+            class="header"
+            on:dragMove
+          >
+            Header
+          </Draggable>
+          <div class="content" style="background-color: {randomCssColor()};">
+            {key}
+          </div>
+        </svelte:component>
+      {/await}
+    </Chunked>
+
   </Board>
 </main>
 

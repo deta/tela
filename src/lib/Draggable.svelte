@@ -4,6 +4,12 @@
   import type { Writable } from "svelte/store";
   import type { IBoard, IBoardSettings } from "./types/Board.type.js";
   import { hasClassOrParentWithClass, snapToGrid } from "./utils.js";
+  import { moveToStackingTop } from "./Board.svelte";
+
+  /**
+   * Events:
+   * - positionableChunkChanged<key, initChunk: dragState.initChunk, newChunk: { x: currChunkX, y: currChunkY }>
+   */
 
   export let key: string;
   export let posX: number;
@@ -25,14 +31,20 @@
   let dragState = {
     init: { x: 0, y: 0 },
     curr: { x: 0, y: 0 },
-    offset: { x: 0, y: 0 }
+    offset: { x: 0, y: 0 },
+    initChunk: { x: 0, y: 0 }
   };
 
   // Utils
+  /**
+   * Converts window position to board position.
+   * @param x
+   * @param y
+   */
   function posToViewportPos(x: number, y: number) {
     return {
-      x: x - $viewX,
-      y: y - $viewY + window.scrollY
+      x: x - $viewX - viewPort.x,
+      y: y - $viewY + window.scrollY - viewPort.y
     };
   }
 
@@ -56,6 +68,10 @@
 
     dragState.init = { x, y };
     dragState.curr = { x, y };
+    dragState.initChunk = {
+      x: Math.floor(posX / $settings.CHUNK_SIZE),
+      y: Math.floor(posY / $settings.CHUNK_SIZE)
+    };
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp, { once: true });
@@ -112,6 +128,26 @@
   }
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
+    // Calculate if moved between chunks.
+    const currChunkX = Math.floor(posX / $settings.CHUNK_SIZE);
+    const currChunkY = Math.floor(posY / $settings.CHUNK_SIZE);
+
+    if (dragState.initChunk.x !== currChunkX || dragState.initChunk.y !== currChunkY) {
+      // dispatch("chunkChange", { key, initChunkX, initChunkY, currChunkX, currChunkY });
+      htmlEl.dispatchEvent(
+        new CustomEvent("positionableChunkChanged", {
+          detail: {
+            key,
+            initChunk:
+            dragState.initChunk,
+            newChunk: { x: currChunkX, y: currChunkY },
+            newPos: { x: posX, y: posY }
+          },
+          bubbles: true
+        })
+      );
+    }
+
     document.body.classList.remove("dragging");
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("touchmove", onMouseMove);
