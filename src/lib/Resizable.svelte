@@ -26,7 +26,6 @@
   function onMouseDown(e: MouseEvent) {
     if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
     e.stopPropagation();
-    document.body.classList.add("resizing");
 
     let cX = e.clientX;
     let cY = e.clientY;
@@ -40,6 +39,8 @@
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp, { once: true });
+
+    $state.mode = "resizing";
 
     dispatch("resizeStart", { positionable });
   }
@@ -69,7 +70,7 @@
     }
 
   function onMouseUp(e: MouseEvent) {
-    document.body.classList.remove("resizing");
+    $state.mode = "draw";
     document.removeEventListener("mousemove", onMouseMove);
     htmlEl.dispatchEvent(
         new CustomEvent("resizable_change", {

@@ -80,8 +80,10 @@
 
     // Move to stack top.
     moveToStackingTop(stackingOrder, key);
+    $state.mode = "dragging";
 
     dispatch("dragStart", { x: posX, y: posY });
+
   }
 
   function onMouseMove(e: MouseEvent | TouchEvent) {
@@ -128,6 +130,7 @@
   }
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
+    $state.mode = "draw";
     const currChunkX = Math.floor(posX / $settings.CHUNK_SIZE);
     const currChunkY = Math.floor(posY / $settings.CHUNK_SIZE);
 

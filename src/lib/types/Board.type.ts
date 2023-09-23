@@ -68,6 +68,8 @@ export interface IBoard {
 export type TBoardMode =
   // Default mode
   | "draw"
+  // Used when drawing with only left click
+  | "drawing"
   // Used when select key is held down
   | "select"
   // Used when pan key is held down
@@ -79,7 +81,11 @@ export type TBoardMode =
   // Used when zoom key is held down
   | "zoom"
   // Used when zoomTo is invoked
-  | "auto-zooming";
+  | "auto-zooming"
+  // Used when positionable is dragged around
+  | "dragging"
+  // Used when positionable is being resized
+  | "resizing";
 export interface TIBoardState { // todo; kill?
   mode: TBoardMode;
 }

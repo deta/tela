@@ -361,6 +361,7 @@
 
     if ($mode === "draw") {
       e.stopPropagation();
+      $state.mode = "drawing";
 
       selectState.init = { x: clientX, y: clientY };
       selectState.curr = { x: clientX, y: clientY };
@@ -491,17 +492,17 @@
   }
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
-    if ($mode === "draw") {
+    if ($mode === "drawing") {
       document.removeEventListener("mousemove", onMouseMoveDraw);
       document.removeEventListener("touchmove", onMouseMoveDraw);
       dispatch("drawEnd", { selection: { pos: selectState.pos, size: selectState.size } });
     } else if ($mode === "panning") {
-      $mode = "pan";
       stopPanning();
     } else if ($mode === "select") {
       stopSelect();
       dispatch("selectEnd", { selectionArea: { pos: selectState.pos, size: selectState.size } }); // todo: copy object to prevent nulling
     }
+    $state.mode = "draw";
     selectState = {
         init: { x: 0, y: 0 },
         curr: { x: 0, y: 0 },
@@ -554,7 +555,7 @@
       <div class="dragIntercept">asf</div>
       {/if}
   <div class="board mode-{$mode}" style={transformCss} on:mousedown={onBoardMouseDown}>
-    {#if $mode === "select" || $mode === "draw"}
+    {#if $mode === "select" || $mode === "drawing"}
       <div class="selection-rect" style={selectionCss} />
       <!-- <div id="dragIntercept">
         <div id="selectionRect" style={selectionCss} bind:this={selectionRectEl} />
@@ -588,7 +589,7 @@
   }
 
   .dragIntercept {
-    background-color: rgba(0, 0, 0, 0.12);
+    background-color: transparent;
     position: fixed;
     z-index: 99999;
     top: 0;
