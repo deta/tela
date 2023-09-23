@@ -81,7 +81,10 @@
       zoom: number;
       mode: TBoardMode;
       selection: Writable<Set<string>>;
-    }>
+    }>,
+    handlers: {
+      onChunksChanged?: (chunks: Writable<Map<string, Writable<IPositionable[]>>>, changed: Set<string>) => void;
+    } = {}
   ): IBoard {
     initialState.viewOffset = {
       // @ts-ignore we just override to not create a new object
@@ -115,6 +118,12 @@
     return {
       state,
 
+      // Handlers
+      onChunksChanged: (chunks: Writable<Map<string, Writable<IPositionable[]>>>, changed: Set<string>) => {
+        handlers.onChunksChanged && handlers.onChunksChanged(chunks, changed);
+      },
+
+      // Commands
       setMode: (mode: TBoardMode) => {
         state.update((s) => {
           s.mode = mode;
@@ -208,7 +217,7 @@
     size: { x: 0, y: 0 }
   };
 
-  $: transformCss = `transform-origin: top left; transform: scale(${$zoom}) translate(${-$viewX}px, ${-$viewY}px);`;
+  $: transformCss = `transform-origin: top left; transform: scale(${$zoom}) translate3d(${-$viewX}px, ${-$viewY}px, 0);`;
 
   // $: selectionCss = `transform: translate(${
   //   $settings.SNAP_TO_GRID ? snapToGrid(Math.floor($viewX + (selectState.pos.x - 0.5) / $zoom), $settings.GRID_SIZE!) : $viewX + selectState.pos.x / $zoom
@@ -384,6 +393,13 @@
     }
   }
 
+  function onBoardMouseDown(e: MouseEvent) {
+    $state.selection.update(_selection => {
+      _selection.clear();
+      return _selection;
+    })
+  }
+
   function onMouseMovePan(e: MouseEvent | TouchEvent) {
     const { x: clientX, y: clientY } = posToViewportPos(
       (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
@@ -426,17 +442,20 @@
     selectState.pos.x = selectState.init.x;
     selectState.pos.y = selectState.init.y;
 
-    selectState.size.x = selectState.offset.x / $zoom;
-    selectState.size.y = selectState.offset.y / $zoom;
+    selectState.size.x = selectState.offset.x;
+    selectState.size.y = selectState.offset.y;
 
     if (selectState.size.x < 0) {
-      selectState.size.x = Math.abs(selectState.offset.x / $zoom);
-      selectState.pos.x = selectState.init.x - selectState.size.x * $zoom;
+      selectState.size.x = Math.abs(selectState.offset.x);
+      selectState.pos.x = selectState.init.x - selectState.size.x;
     }
     if (selectState.size.y < 0) {
-      selectState.size.y = Math.abs(selectState.offset.y / $zoom);
-      selectState.pos.y = selectState.init.y - selectState.size.y * $zoom;
+      selectState.size.y = Math.abs(selectState.offset.y);
+      selectState.pos.y = selectState.init.y - selectState.size.y;
     }
+
+    // todo: optimize if snapToGrid
+    // todo: calc chunkes
 
     selectState.curr = { x: clientX, y: clientY };
     dispatch("selectMove", { selectState });
@@ -497,11 +516,12 @@
 
   onMount(() => {
     const rec = containerEl.getBoundingClientRect();
+    console.log("rec", rec)
     $state.viewPort = {
       x: rec.x,
       y: rec.y,
-      w: rec.right - rec.left,
-      h: rec.bottom - rec.top
+      w: window.innerWidth,//rec.right - rec.left,
+      h: window.innerHeight//rec.bottom - rec.top
     };
   });
 </script>
@@ -521,7 +541,7 @@
   </div>
 {/if}
 
-<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} />
+<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp}/>
 
 <div
   class="container"
@@ -530,7 +550,10 @@
   on:wheel|nonpassive={onWheel}
   bind:this={containerEl}
 >
-  <div class="board mode-{$mode}" style={transformCss}>
+{#if ["select", "zoom", "pan", "panning"].includes($mode)}
+      <div class="dragIntercept">asf</div>
+      {/if}
+  <div class="board mode-{$mode}" style={transformCss} on:mousedown={onBoardMouseDown}>
     {#if $mode === "select" || $mode === "draw"}
       <div class="selection-rect" style={selectionCss} />
       <!-- <div id="dragIntercept">
@@ -560,8 +583,18 @@
     will-change: transform;
     isolation: isolate;
 
-    transform-style: preserve-3d;
-    backface-visibility: hidden;
+    /* transform-style: preserve-3d;
+    backface-visibility: hidden; */
+  }
+
+  .dragIntercept {
+    background-color: rgba(0, 0, 0, 0.12);
+    position: fixed;
+    z-index: 99999;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
   }
 
   .selection-rect {

@@ -1,6 +1,6 @@
 import type { Writable } from "svelte/store";
 import type { TBoardMode } from "./types/Board.type.ts";
-import type { Vec2 } from "./types/Utils.type.ts";
+import type { Vec2, Vec4 } from "./types/Utils.type.ts";
 
 export const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
 export const clamp = (a: number, min = 0, max = 1) => Math.min(max, Math.max(min, a));
@@ -25,8 +25,13 @@ export function snapToGrid(value: number, snap: number): number {
   return Math.round(value / snap) * snap;
 }
 
-export function posInsideAutoPan(pos: Vec2, board: Writable<TBoardMode>) {
-
+export function rectsIntersect(a: Vec4, b: Vec4) {
+  return (
+    a.x < b.x + b.w &&
+    a.x + a.w > b.x &&
+    a.y < b.y + b.h &&
+    a.y + a.h > b.y
+  );
 }
 
 const debounceMap = new Map();

@@ -8,6 +8,8 @@
 
   /**
    * Events:
+   * - draggable_move
+   * - draggable_move_end
    * - positionableChunkChanged<key, initChunk: dragState.initChunk, newChunk: { x: currChunkX, y: currChunkY }>
    */
 
@@ -59,8 +61,6 @@
     if (hasClassOrParentWithClass(target as HTMLElement, "tela-ignore")) return;
     e.stopPropagation();
     //document.body.classList.add("dragging");
-    // let cX = e.clientX;
-    // let cY = e.clientY;
     // todo: handle touch
 
     const x = $settings.SNAP_TO_GRID ? snapToGrid(clientX, $settings.GRID_SIZE!) : clientX;
@@ -120,7 +120,7 @@
 
     dispatch("dragMove", { key, posX, posY, offset: dragState.offset });
     htmlEl.dispatchEvent(
-      new CustomEvent("dragMove", {
+      new CustomEvent("draggable_move", {
         detail: { key, posX, posY, offset: dragState.offset },
         bubbles: true
       })
@@ -128,25 +128,20 @@
   }
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
-    // Calculate if moved between chunks.
     const currChunkX = Math.floor(posX / $settings.CHUNK_SIZE);
     const currChunkY = Math.floor(posY / $settings.CHUNK_SIZE);
 
-    // if (dragState.initChunk.x !== currChunkX || dragState.initChunk.y !== currChunkY) {
-      // dispatch("chunkChange", { key, initChunkX, initChunkY, currChunkX, currChunkY });
-      htmlEl.dispatchEvent(
-        new CustomEvent("positionableChanged", {
-          detail: {
-            key,
-            initChunk:
-            dragState.initChunk,
-            currChunk: { x: currChunkX, y: currChunkY },
-            newPos: { x: posX, y: posY }
-          },
-          bubbles: true
-        })
-      );
-    // }
+    htmlEl.dispatchEvent(
+      new CustomEvent("draggable_move_end", {
+        detail: {
+          key,
+          initChunk: dragState.initChunk,
+          currChunk: { x: currChunkX, y: currChunkY },
+          newPos: { x: posX, y: posY }
+        },
+        bubbles: true
+      })
+    );
 
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("touchmove", onMouseMove);

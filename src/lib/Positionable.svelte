@@ -9,7 +9,7 @@
 </script>
 
 <script lang="ts">
-  import { getContext, onMount, setContext } from "svelte";
+  import { getContext, onDestroy, onMount, setContext } from "svelte";
   import type { Writable } from "svelte/store";
   import type { Vec2, Vec4 } from "./types/Utils.type.js";
   import type { IBoard, IBoardSettings } from "./types/Board.type.js";
@@ -20,12 +20,13 @@
   export let zIndex: number | undefined = undefined;
   let { key, posX, posY, width, height } = positionable;
 
+  let htmlEl: HTMLDivElement;
   const board = getContext<IBoard>("board");
   const settings = getContext<Writable<IBoardSettings>>("settings");
   const stackingOrder = getContext<Writable<string>>("stackingOrder");
 
   let state = board.state;
-  $: ({ viewPort } = $state);
+  $: ({ viewPort, selection } = $state);
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ zoom } = $state);
   $: z = zIndex !== undefined ? zIndex : $stackingOrder.indexOf(key);
@@ -38,25 +39,44 @@
     $settings.SNAP_TO_GRID ? snapToGrid(height, $settings.GRID_SIZE!) : height
   }px; z-index: ${z};`;
 
+  // Handlers
+  function onDraggableMove(e: CustomEvent<{ key: string, posX: number, posY: number }>) {
+    e.stopPropagation();
+    const { key, posX: newPosX, posY: newPosY } = e.detail;
+    posX = newPosX
+    posY = newPosY;
+  }
+  function onResizableChanged(e: CustomEvent<{ positionable: IPositionable }>) {
+    e.stopPropagation();
+    console.log("newsize", e.detail)
+    width = e.detail.positionable.width;
+    height = e.detail.positionable.height;
+  }
+  // function onDraggableMoveEnd(e: CustomEvent<{ key: string, initChunk: Vec2<number>, newPos: Vec2<number> }>) {
+  //   const { newPos } = e.detail;
+  //   posX = newPos.x;
+  //   posY = newPos.y;
+  // }
+
+
+
   onMount(() => {
-    document.addEventListener("dragMove", (e) => {
-      if (e.detail.key === key) {
-        posX = e.detail.posX;
-        posY = e.detail.posY;
-        // chunkPos = {
-        //   x: Math.abs(posX) % $settings.CHUNK_SIZE,
-        //   y: Math.abs(posY) % $settings.CHUNK_SIZE
-        // };
-      }
-    });
+    htmlEl.addEventListener("draggable_move", onDraggableMove);
+    htmlEl.addEventListener("resizable_change", onResizableChanged);
+    // htmlEl.addEventListener("draggable_move_end", onDraggableMoveEnd);
+  });
+  onDestroy(() => {
+    htmlEl && htmlEl.removeEventListener("draggable_move", onDraggableMove);
+    htmlEl && htmlEl.addEventListener("resizable_change", onResizableChanged);
   });
 </script>
 
 <svelte:element
   this="div"
   {...$$restProps}
-  class="positionable {$$restProps.class || ''}"
+  class="positionable {$selection.has(key) ? 'selected' : ''} {$$restProps.class || ''}"
   style="{transformCss} {$$restProps.style || ''}"
+  bind:this={htmlEl}
 >
   <!-- {#if $zoom > 0.6} -->
   <slot />
@@ -70,7 +90,7 @@
     left: 0;
     transform-origin: top left;
 
-    transform-style: preserve-3d;
-    backface-visibility: hidden;
+    /* transform-style: preserve-3d;
+    backface-visibility: hidden; */
   }
 </style>

@@ -1,14 +1,22 @@
+<script context="module" lang="ts">
+  export function posToChunkPos(posX: number, posY: number, settings: IBoardSettings) {
+    return {
+      chunkX: Math.floor(posX / settings.CHUNK_SIZE),
+      chunkY: Math.floor(posY / settings.CHUNK_SIZE)
+    };
+  }
+</script>
 <script lang="ts">
-  import { createEventDispatcher, getContext, onMount } from "svelte";
+  import { createEventDispatcher, getContext, onDestroy, onMount } from "svelte";
   import Chunk from "./Chunk.svelte";
   import { derived, get, writable, type Writable } from "svelte/store";
   import type { IPositionable } from "./Positionable.svelte";
-  import type { IBoard, IBoardSettings } from "./index.ts";
+  import type { IBoard, IBoardSettings, Vec2 } from "./index.ts";
 
   export let chunks: Writable<Map<string, Writable<IPositionable[]>>>;
   export let lazy = true;
 
-  let element: HTMLDivElement;
+  let htmlEl: HTMLDivElement;
   const dispatch = createEventDispatcher();
 
   const board = getContext<IBoard>("board");
@@ -48,8 +56,7 @@
     dispatch("warmChunksChanged", { warmChunks: calcWarmChunks() });
   }
 
-
-
+  // Utils
   /**
    * Calculated all chunks which are "warm" based on the loading settings.
    * Warm chunks should be loaded in the client app to be ready for display.
@@ -80,6 +87,51 @@
   }
 
   // Handlers
+  function onDraggableMoveEnd(e: CustomEvent<{ key: string, initChunk: Vec2<number>, newPos: Vec2<number> }>) {
+    e.stopPropagation();
+    const changed = new Set<string>();
+    changed.add(`${e.detail.initChunk.x}:${e.detail.initChunk.y}`);
+
+    // Handle chunk move
+    const { chunkX: newChunkX, chunkY: newChunkY } = posToChunkPos(e.detail.newPos.x, e.detail.newPos.y, $settings);
+
+    if (newChunkX !== e.detail.initChunk.x || newChunkY !== e.detail.initChunk.y) {
+      changed.add(`${newChunkX}:${newChunkY}`);
+      chunks.update(_chunks => {
+        const initChunk = _chunks.get(`${e.detail.initChunk.x}:${e.detail.initChunk.y}`);
+        let positionable: IPositionable | undefined;
+        if (initChunk) {
+          const _positionable = get(initChunk).find(p => p.key === e.detail.key);
+          if (_positionable) {
+            positionable = _positionable;
+          }
+          initChunk.update(ck => {
+            ck = ck.filter(p => p.key !== e.detail.key);
+            return ck;
+          });
+        }
+        if (!positionable) {
+          alert("Positionable not found in chunk");
+          return _chunks; // todo: warn? dont rly need cuz if !chunked positionable should be fine.
+        }
+        const newChunk = _chunks.get(`${newChunkX}:${newChunkY}`);
+        if (!newChunk) {
+          _chunks.set(`${newChunkX}:${newChunkY}`, writable([positionable]));
+        }
+        else {
+          newChunk.update(ck => {
+            ck.push(positionable!);
+            return ck;
+          });
+        }
+
+        return _chunks;
+      })
+    }
+
+    // Sync chunk & page
+    board.onChunksChanged(chunks, changed);
+  }
   function onPositionableChunkChanged(e: CustomEvent<{ key: string, initChunk: { x: number, y: number }, newChunk: { x: number, y: number }, newPos: { x: number, y: number } }>) {
     const { key, initChunk, currChunk, newPos } = e.detail;
 
@@ -116,13 +168,18 @@
     });
   }
 
-  onMount(() => element.addEventListener("positionableChanged", onPositionableChunkChanged))
+  onMount(() => {
+    htmlEl.addEventListener("draggable_move_end", onPositionableChunkChanged);
+  })
   onMount(() => {
     dispatch("warmChunksChanged", { warmChunks: calcWarmChunks() });
   });
+  onDestroy(() => {
+    htmlEl && htmlEl.removeEventListener("draggable_move_end", onPositionableChunkChanged);
+  });
 </script>
 
-<div class="chunked" bind:this={element}>
+<div class="chunked" bind:this={htmlEl}>
 <!-- {#key $chunksUpdate} -->
   {#each $chunks.entries() as [k, v] (k)}
     {@const cX = parseInt(k.split(":")[0])}

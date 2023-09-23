@@ -30,6 +30,24 @@
   export function absToChunkIndex(x: number, y: number, chunkSize: number) {
     return [Math.floor(x / chunkSize), Math.floor(y / chunkSize)];
   }
+  export function positionableInView(
+      posX: number,
+      posY: number,
+      width: number,
+      height: number,
+      vX: number,
+      vY: number,
+      CULL_MARGIN: number,
+      viewPort: Vec2<number>,
+      zoom: number
+    ) {
+      return (
+        posX + width + CULL_MARGIN >= vX &&
+        posY + height + CULL_MARGIN >= vY &&
+        posX - CULL_MARGIN <= vX + viewPort.x / zoom &&
+        posY - CULL_MARGIN <= vY + viewPort.y / zoom
+      );
+    }
 </script>
 
 <script lang="ts">
@@ -50,9 +68,9 @@
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ zoom } = $state);
 
-  $: cssStyle = `transform: translate(${chunkX * $settings.CHUNK_SIZE}px, ${
+  $: cssStyle = `transform: translate3d(${chunkX * $settings.CHUNK_SIZE}px, ${
     chunkY * $settings.CHUNK_SIZE
-  }px); width: ${$settings.CHUNK_SIZE}px; height: ${$settings.CHUNK_SIZE}px; ${
+  }px, 0); width: ${$settings.CHUNK_SIZE}px; height: ${$settings.CHUNK_SIZE}px; ${
     $settings.DEV.CHUNK_DBG ? `background-color: ${randomCssColor(0.5)};` : ""
   }`;
 
@@ -99,6 +117,7 @@
     top: 0;
     left: 0;
     z-index: -1;
+    backface-visibility: hidden;
     /* will-change: transform; */
 
     /* transform-style: preserve-3d;

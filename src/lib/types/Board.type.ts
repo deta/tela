@@ -1,6 +1,7 @@
 import type { Tweened } from "svelte/motion";
 import type { Vec2, Vec4 } from "./Utils.type.js";
 import type { Writable } from "svelte/store";
+import type { IPositionable } from "$lib/Positionable.svelte";
 
 export interface IBoardSettings {
   CAN_DRAW: boolean;
@@ -49,9 +50,19 @@ export interface IBoardState {
 export interface IBoard {
   state: Writable<IBoardState>;
 
+  // Commands
   setMode: (mode: TBoardMode) => void;
   panTo: (x: number, y: number, duration?: number, delay?: number) => Promise<any>;
   zoomTo: (zoom: number, duration?: number, delay?: number) => Promise<void>;
+
+  // Handlers, called from inside tela. Can also be called from outside to extend functionality.
+  /**
+   * Called when positionable
+   */
+  onChunksChanged: (
+    chunks: Writable<Map<string, Writable<IPositionable[]>>>,
+    changed: Set<string>
+  ) => void;
 }
 
 export type TBoardMode =

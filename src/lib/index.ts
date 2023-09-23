@@ -14,6 +14,7 @@ export { default as Resizable } from "./Resizable.svelte";
 export { default as Grid } from "./Grid.svelte";
 // export { default as Gradient } from "./Gradient.svelte";
 
+export { rectsIntersect } from "./utils.js";
 export type { IBoard, IBoardSettings, IBoardState, TBoardMode } from "./types/Board.type.js";
 export type { Vec2, DeepPartial, Vec4 } from "./types/Utils.type.js";
 
