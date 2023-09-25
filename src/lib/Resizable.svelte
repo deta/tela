@@ -6,7 +6,8 @@
   import type { IBoard, IBoardSettings } from "./types/Board.type.js";
   import type { IPositionable } from "./Positionable.svelte";
 
-  export let positionable: IPositionable, direction: "ne" | "sw" | "ne-sw" | "es-wn";
+  export let positionable: IPositionable;
+  export let direction: "wn" | "ne" | "es" | "sw";
 
   const board = getContext<IBoard>("board");
   const settings = getContext<Writable<IBoardSettings>>("settings");
@@ -56,9 +57,27 @@
 
     resizeState.curr = { x: e.clientX, y: e.clientY };
 
-    // todo: optimize setting pos?
-    positionable.width += resizeState.offset.x;
-    positionable.height += resizeState.offset.y;
+    if (direction === "wn") {
+      // todo: optimize setting pos?
+      positionable.width += resizeState.offset.x;
+      positionable.height += resizeState.offset.y;
+    }
+    else if (direction === "ne") {
+      positionable.width -= resizeState.offset.x;
+      positionable.height += resizeState.offset.y;
+      positionable.posX += resizeState.offset.x;
+    }
+    else if (direction === "es") {
+      positionable.width -= resizeState.offset.x;
+      positionable.height -= resizeState.offset.y;
+      positionable.posY += resizeState.offset.y;
+      positionable.posX += resizeState.offset.x;
+    }
+    else if (direction === "sw") {
+      positionable.width += resizeState.offset.x;
+      positionable.height -= resizeState.offset.y;
+      positionable.posY += resizeState.offset.y;
+    }
 
       htmlEl.dispatchEvent(
         new CustomEvent("resizable_change", {

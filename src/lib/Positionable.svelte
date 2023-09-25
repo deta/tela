@@ -49,6 +49,8 @@
   function onResizableChanged(e: CustomEvent<{ positionable: IPositionable }>) {
     e.stopPropagation();
     console.log("newsize", e.detail)
+    posX = e.detail.positionable.posX;
+    posY = e.detail.positionable.posY;
     width = e.detail.positionable.width;
     height = e.detail.positionable.height;
   }
