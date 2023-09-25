@@ -5,7 +5,10 @@
    */
   export function createSettings(settings: DeepPartial<IBoardSettings>): Writable<IBoardSettings> {
     return writable({
+      CAN_PAN: true,
+      CAN_DRAW: true,
       CAN_ZOOM: true,
+      CAN_SELECT: true,
       SNAP_TO_GRID: false,
       GRID_SIZE: 20,
 
@@ -302,7 +305,7 @@
 
       debounce("tela_zoomModeReset", 50, () => $state.mode = "draw");
     } else {
-      if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
+      if (!$settings.CAN_PAN || hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
       e.preventDefault();
       e.stopPropagation();
 
@@ -347,6 +350,7 @@
   }
 
   function onMouseDown(e: MouseEvent | TouchEvent) {
+    if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
     const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
     const { x: clientX, y: clientY } = posToViewportPos(
       (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
@@ -551,9 +555,9 @@
   on:wheel|nonpassive={onWheel}
   bind:this={containerEl}
 >
-{#if ["select", "zoom", "pan", "panning"].includes($mode)}
-      <div class="dragIntercept">asf</div>
-      {/if}
+  {#if ["select", "zoom", "pan", "panning"].includes($mode)}
+    <div class="dragIntercept"></div>
+  {/if}
   <div class="board mode-{$mode}" style={transformCss} on:mousedown={onBoardMouseDown}>
     {#if $mode === "select" || $mode === "drawing"}
       <div class="selection-rect" style={selectionCss} />
