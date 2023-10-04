@@ -1,11 +1,10 @@
 <script context="module" lang="ts">
-  export interface IPositionable {
-    key: string;
-    posX: number;
-    posY: number;
+  export type IPositionable<KeyName extends string> = {
+    pos_x: number;
+    pos_y: number;
     width: number;
     height: number;
-  }
+  } & {[P in KeyName]: string};
 </script>
 
 <script lang="ts">
