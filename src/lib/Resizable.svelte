@@ -6,7 +6,12 @@
   import type { IPositionable } from "./Positionable.svelte";
   import type { Vec2 } from "./index.js";
 
-  export let positionable: IPositionable;
+  // export let positionable: IPositionable;
+  export let key: string;
+  export let x: number;
+  export let y: number;
+  export let width: number;
+  export let height: number;
   export let direction: "wn" | "ne" | "es" | "sw";
   export let minSize: Vec2<number> = { x: 0, y: 0 };
   export let maxSize: Vec2<number> = { x: Infinity, y: Infinity };
@@ -43,18 +48,18 @@
     let cY = e.clientY;
     // todo: handle touch
 
-    const x = cX//$settings.SNAP_TO_GRID ? snapToGrid(cX, $settings.GRID_SIZE!) : cX;
-    const y = cY//$settings.SNAP_TO_GRID ? snapToGrid(cY, $settings.GRID_SIZE!) : cY;
+    const sX = cX//$settings.SNAP_TO_GRID ? snapToGrid(cX, $settings.GRID_SIZE!) : cX;
+    const sY = cY//$settings.SNAP_TO_GRID ? snapToGrid(cY, $settings.GRID_SIZE!) : cY;
 
-    resizeState.init = { x, y };
-    resizeState.curr = { x, y };
+    resizeState.init = { x: sX, y: sY };
+    resizeState.curr = { x: sX, y: sY };
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp, { once: true });
 
     $state.mode = "resizing";
 
-    dispatch("resizeStart", { positionable });
+    dispatch("resizeStart", { key, x, y, width, height });
   }
 
   function onMouseMove(e: MouseEvent) {
@@ -70,63 +75,63 @@
 
     if (direction === "wn") {
       // todo: optimize setting pos?
-      positionable.width += resizeState.offset.x;
-      positionable.height += resizeState.offset.y;
+      width += resizeState.offset.x;
+      height += resizeState.offset.y;
     }
     else if (direction === "ne") {
-      positionable.width -= resizeState.offset.x;
-      positionable.height += resizeState.offset.y;
-      positionable.posX += resizeState.offset.x;
+      width -= resizeState.offset.x;
+      height += resizeState.offset.y;
+      x += resizeState.offset.x;
     }
     else if (direction === "es") {
-      positionable.width -= resizeState.offset.x;
-      positionable.height -= resizeState.offset.y;
-      positionable.posY += resizeState.offset.y;
-      positionable.posX += resizeState.offset.x;
+      width -= resizeState.offset.x;
+      height -= resizeState.offset.y;
+      y += resizeState.offset.y;
+      x += resizeState.offset.x;
     }
     else if (direction === "sw") {
-      positionable.width += resizeState.offset.x;
-      positionable.height -= resizeState.offset.y;
-      positionable.posY += resizeState.offset.y;
+      width += resizeState.offset.x;
+      height -= resizeState.offset.y;
+      y += resizeState.offset.y;
     }
 
-    const clamped = clampSize({ x: positionable.width, y: positionable.height });
-    positionable.width = clamped.x;
-    positionable.height = clamped.y;
+    const clamped = clampSize({ x: width, y: height });
+    width = clamped.x;
+    height = clamped.y;
 
       htmlEl.dispatchEvent(
         new CustomEvent("resizable_change", {
-          detail: { positionable },
+          detail: { key, x, y, width, height },
           bubbles: true
         })
       );
-      dispatch("resize", { positionable });
+      dispatch("resize", { key, x, y, width, height });
     }
 
   function onMouseUp(e: MouseEvent) {
     $state.mode = "draw"; // todo: fix
 
-    const clamped = clampSize({ x: positionable.width, y: positionable.height });
-    positionable.width = $settings.SNAP_TO_GRID ? snapToGrid(clamped.x, $settings.GRID_SIZE!) : clamped.x;
-    positionable.height = $settings.SNAP_TO_GRID ? snapToGrid(clamped.y, $settings.GRID_SIZE!) : clamped.y;
+    const clamped = clampSize({ x: width, y: height });
+    width = $settings.SNAP_TO_GRID ? snapToGrid(clamped.x, $settings.GRID_SIZE!) : clamped.x;
+    height = $settings.SNAP_TO_GRID ? snapToGrid(clamped.y, $settings.GRID_SIZE!) : clamped.y;
 
     // positionable.width = clamped.x;
     // positionable.height = clamped.y;
 
     htmlEl.dispatchEvent(
         new CustomEvent("resizable_move_end", {
-          detail: { positionable },
+          detail: { key, x, y, width, height },
           bubbles: true
         })
       );
     document.removeEventListener("mousemove", onMouseMove);
     htmlEl.dispatchEvent(
         new CustomEvent("resizable_change", {
-          detail: { positionable },
+          detail: { key, x, y, width, height },
           bubbles: true
         })
       );
-    dispatch("resizeEnd", { positionable });
+    dispatch("resizeEnd", { key, x, y, width, height });
   }
 </script>
 

@@ -14,9 +14,10 @@
    */
 
   export let key: string;
-  export let posX: number;
-  export let posY: number;
-  export let size: Vec2<number>;
+  export let x: number;
+  export let y: number;
+  export let width: number;
+  export let height: number;
 
   const dispatch = createEventDispatcher();
 
@@ -26,7 +27,7 @@
 
   let htmlEl: HTMLDivElement;
   let state = board.state;
-  $: ({ viewPort } = $state);
+  $: ({ viewPort, selection } = $state);
   $: ({ x: viewX, y: viewY } = $state.viewOffset);
   $: ({ zoom } = $state);
 
@@ -60,17 +61,23 @@
 
     if (hasClassOrParentWithClass(target as HTMLElement, "tela-ignore")) return;
     e.stopPropagation();
+
+    // Reset selection to prevent remaining selection when moving sth. elese
+    if (!$selection.has(key)) {
+      $selection.clear();
+    }
+
     //document.body.classList.add("dragging");
     // todo: handle touch
 
-    const x = $settings.SNAP_TO_GRID ? snapToGrid(clientX, $settings.GRID_SIZE!) : clientX;
-    const y = $settings.SNAP_TO_GRID ? snapToGrid(clientY, $settings.GRID_SIZE!) : clientY;
+    const sX = $settings.SNAP_TO_GRID ? snapToGrid(clientX, $settings.GRID_SIZE!) : clientX;
+    const sY = $settings.SNAP_TO_GRID ? snapToGrid(clientY, $settings.GRID_SIZE!) : clientY;
 
-    dragState.init = { x, y };
-    dragState.curr = { x, y };
+    dragState.init = { x: sX, y: sY };
+    dragState.curr = { x: sX, y: sY };
     dragState.initChunk = {
-      x: Math.floor(posX / $settings.CHUNK_SIZE),
-      y: Math.floor(posY / $settings.CHUNK_SIZE)
+      x: Math.floor(x / $settings.CHUNK_SIZE),
+      y: Math.floor(y / $settings.CHUNK_SIZE)
     };
 
     document.addEventListener("mousemove", onMouseMove);
@@ -82,7 +89,13 @@
     moveToStackingTop(stackingOrder, key);
     $state.mode = "dragging";
 
-    dispatch("dragStart", { x: posX, y: posY });
+    dispatch("dragStart", { x, y });
+    htmlEl.dispatchEvent(
+      new CustomEvent("draggable_move_start", {
+        detail: { key, x, y },
+        bubbles: true
+      })
+    );
 
   }
 
@@ -101,29 +114,29 @@
 
     // todo: optimize setting pos?
 
-    const newX = posX + dragState.offset.x;
-    const newY = posY + dragState.offset.y;
+    const newX = x + dragState.offset.x;
+    const newY = y + dragState.offset.y;
 
     if ($settings.BOUNDS?.minX !== null && newX < $settings.BOUNDS!.minX) {
-      posX = $settings.BOUNDS!.minX;
-    } else if ($settings.BOUNDS?.maxX !== null && newX + size.x > $settings.BOUNDS!.maxX) {
-      posX = $settings.BOUNDS!.maxX - size.x;
+      x = $settings.BOUNDS!.minX;
+    } else if ($settings.BOUNDS?.maxX !== null && newX + width > $settings.BOUNDS!.maxX) {
+      x = $settings.BOUNDS!.maxX - width;
     } else {
-      posX += dragState.offset.x;
+      x += dragState.offset.x;
     }
 
     if ($settings.BOUNDS?.minY !== null && newY < $settings.BOUNDS!.minY) {
-      posY = $settings.BOUNDS!.minY;
-    } else if ($settings.BOUNDS?.maxY !== null && newY + size.y > $settings.BOUNDS!.maxY) {
-      posY = $settings.BOUNDS!.maxY - size.y;
+      y = $settings.BOUNDS!.minY;
+    } else if ($settings.BOUNDS?.maxY !== null && newY + height > $settings.BOUNDS!.maxY) {
+      y = $settings.BOUNDS!.maxY - height;
     } else {
-      posY += dragState.offset.y;
+      y += dragState.offset.y;
     }
 
-    dispatch("dragMove", { key, posX, posY, offset: dragState.offset });
+    dispatch("dragMove", { key, x, y, offset: dragState.offset });
     htmlEl.dispatchEvent(
       new CustomEvent("draggable_move", {
-        detail: { key, posX, posY, offset: dragState.offset },
+        detail: { key, x, y, offset: dragState.offset },
         bubbles: true
       })
     );
@@ -131,8 +144,8 @@
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
     $state.mode = "draw";
-    const currChunkX = Math.floor(posX / $settings.CHUNK_SIZE);
-    const currChunkY = Math.floor(posY / $settings.CHUNK_SIZE);
+    const currChunkX = Math.floor(x / $settings.CHUNK_SIZE);
+    const currChunkY = Math.floor(y / $settings.CHUNK_SIZE);
 
     htmlEl.dispatchEvent(
       new CustomEvent("draggable_move_end", {
@@ -140,7 +153,7 @@
           key,
           initChunk: dragState.initChunk,
           currChunk: { x: currChunkX, y: currChunkY },
-          newPos: { x: posX, y: posY }
+          newPos: { x, y }
         },
         bubbles: true
       })
@@ -148,7 +161,7 @@
 
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("touchmove", onMouseMove);
-    dispatch("dragEnd", { posX, posY });
+    dispatch("dragEnd", { x, y });
   }
 </script>
 
