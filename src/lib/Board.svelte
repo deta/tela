@@ -52,12 +52,28 @@
     x: number,
     y: number,
     duration: number = 400,
-    delay: number = 0
+    delay: number = 0,
+    bounds: { minX: number | null, maxX: number | null, minY: number | null, maxY: number | null } = {
+      minX: null,
+      maxX: null,
+      minY: null,
+      maxY: null
+    }
   ) {
     // todo: add gta pan mode
+    const boundX = clamp(
+        x,
+        bounds.minX !== null ? bounds.minX : -Infinity,
+        bounds.maxX !== null ? bounds.maxX - window.innerWidth : Infinity // todo: use bounding rect
+      );
+      const boundY = clamp(
+        y,
+        bounds.minY !== null ? bounds.minY : -Infinity,
+        bounds.maxY !== null ? bounds.maxY! - window.innerHeight : Infinity
+      );
     return Promise.all([
-      viewOffset.x.set(x, { duration, delay }),
-      viewOffset.y.set(y, { duration, delay })
+      viewOffset.x.set(boundX, { duration, delay }),
+      viewOffset.y.set(boundY, { duration, delay })
     ]);
   }
 
@@ -85,6 +101,7 @@
       mode: TBoardMode;
       selection: Writable<Set<string>>;
     }>,
+    settings: Writable<IBoardSettings>,
     handlers: {
       onChunksChanged?: (chunks: Writable<Map<string, Writable<IPositionable[]>>>, changed: Set<string>) => void;
     } = {}
