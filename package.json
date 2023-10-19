@@ -22,10 +22,7 @@
     "publish:storybook": "pnpm build:storybook && touch ./docs/.nojekyll && gh-pages -d ./docs -t true -r https://github.com/deta/tela"
   },
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "svelte": "./dist/index.js"
-    }
+    ".": "./dist/index.js"
   },
   "files": [
     "dist",
@@ -51,6 +48,7 @@
     "@types/ace": "^0.0.48",
     "ace-builds": "^1.24.1",
     "gh-pages": "^6.0.0",
+    "html-gl": "^0.3.2",
     "prettier": "^2.8.0",
     "prettier-plugin-svelte": "^2.10.1",
     "publint": "^0.1.9",
@@ -65,8 +63,5 @@
   },
   "svelte": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "type": "module",
-  "dependencies": {
-    "deta": "^2.0.0"
-  }
+  "type": "module"
 }
