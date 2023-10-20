@@ -35,6 +35,7 @@
     init: { x: 0, y: 0 },
     curr: { x: 0, y: 0 },
     offset: { x: 0, y: 0 },
+    autoPanOffset : { x: 0, y: 0 },
     initChunk: { x: 0, y: 0 }
   };
 
@@ -70,11 +71,11 @@
     //document.body.classList.add("dragging");
     // todo: handle touch
 
-    const sX = $settings.SNAP_TO_GRID ? snapToGrid(clientX, $settings.GRID_SIZE!) : clientX;
-    const sY = $settings.SNAP_TO_GRID ? snapToGrid(clientY, $settings.GRID_SIZE!) : clientY;
+    // const sX = $settings.SNAP_TO_GRID ? snapToGrid(clientX, $settings.GRID_SIZE!) : clientX;
+    // const sY = $settings.SNAP_TO_GRID ? snapToGrid(clientY, $settings.GRID_SIZE!) : clientY;
 
-    dragState.init = { x: sX, y: sY };
-    dragState.curr = { x: sX, y: sY };
+    dragState.init = { x: clientX, y: clientY };
+    dragState.curr = { x: clientX, y: clientY };
     dragState.initChunk = {
       x: Math.floor(x / $settings.CHUNK_SIZE),
       y: Math.floor(y / $settings.CHUNK_SIZE)
@@ -96,9 +97,9 @@
         bubbles: true
       })
     );
-
   }
 
+  let autoPanInterval: NodeJS.Timer | null = null;
   function onMouseMove(e: MouseEvent | TouchEvent) {
     const { x: clientX, y: clientY } = posToViewportPos(
       (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
@@ -106,16 +107,46 @@
     );
 
     dragState.offset = {
-      x: (clientX - dragState.curr.x) / $zoom,
+      x: ((clientX - dragState.curr.x) / $zoom),
       y: (clientY - dragState.curr.y) / $zoom
     };
 
     dragState.curr = { x: clientX, y: clientY };
 
+    // Auto Pan
+    // if (e.clientX < 200) {
+    //   if (autoPanInterval === null) {
+    //     autoPanInterval = setInterval(() => {
+    //       dragState.autoPanOffset.x -= 1;
+    //       // x -= 1;
+    //       $state.viewOffset.x.update((_x) => (_x -= 1), { duration: 0 });
+    //     }, 10);
+    //   }
+    // } else if (e.clientX > window.innerWidth - 200) {
+    //   if (autoPanInterval === null) {
+    //     autoPanInterval = setInterval(() => {
+    //       dragState.autoPanOffset.x += 1;
+    //       // x += 1;
+    //       $state.viewOffset.x.update((_x) => (_x += 1), { duration: 0 });
+    //     }, 10);
+    //   }
+    // }
+    // else {
+    //   if (autoPanInterval !== null) clearInterval(autoPanInterval);
+    //   autoPanInterval = null;
+    // }
+
     // todo: optimize setting pos?
 
     const newX = x + dragState.offset.x;
     const newY = y + dragState.offset.y;
+    // const vpInit = posToViewportPos(dragState.init.x, dragState.init.y)
+    // const vpOffset
+    // const newX = vpInit.x + dragState.offset.x + dragState.autoPanOffset.x;
+    // const newY = vpInit.y + dragState.offset.y + dragState.autoPanOffset.y;
+
+    // x = newX
+    // y = newY
 
     if ($settings.BOUNDS?.minX !== null && newX < $settings.BOUNDS!.minX) {
       x = $settings.BOUNDS!.minX;
@@ -143,9 +174,16 @@
   }
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
+    if (autoPanInterval !== null) clearInterval(autoPanInterval);
+    autoPanInterval = null;
     $state.mode = "draw";
     const currChunkX = Math.floor(x / $settings.CHUNK_SIZE);
     const currChunkY = Math.floor(y / $settings.CHUNK_SIZE);
+
+    x = $settings.SNAP_TO_GRID ? snapToGrid(x, $settings.GRID_SIZE!) : x;
+    y = $settings.SNAP_TO_GRID ? snapToGrid(y, $settings.GRID_SIZE!) : y;
+    width = $settings.SNAP_TO_GRID ? snapToGrid(width, $settings.GRID_SIZE!) : width;
+    height = $settings.SNAP_TO_GRID ? snapToGrid(height, $settings.GRID_SIZE!) : height;
 
     htmlEl.dispatchEvent(
       new CustomEvent("draggable_move_end", {

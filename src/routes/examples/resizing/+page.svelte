@@ -1,17 +1,14 @@
 <script lang="ts">
   import Board, { createBoard, createSettings } from "$lib/Board.svelte";
   import { absToChunkIndex, positionableInView } from "$lib/Chunk.svelte";
-  import Chunked from "$lib/Chunked.svelte";
   import Draggable from "$lib/Draggable.svelte";
   import Grid from "$lib/Grid.svelte";
   import Positionable from "$lib/Positionable.svelte";
   import type { IPositionable } from "$lib/Positionable.svelte";
+  import Resizable from "$lib/Resizable.svelte";
   import type { IBoard as TBoard } from "$lib/types/Board.type.js";
-  import type { Vec2 } from "$lib/types/Utils.type.js";
   import { randomCssColor } from "$lib/utils.js";
-  import { get, writable, type Writable } from "svelte/store";
-  // import "html-gl/dist/htmlgl.js"
-  import { onMount } from "svelte";
+  import { writable, type Writable } from "svelte/store";
 
   let settings = createSettings({
     DEV: {
@@ -97,10 +94,6 @@
     height: 300,
   };
   $stackingOrder.push(regularCard.key);
-
-  onMount(() => {
-    viewPort = { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
-  })
 </script>
 
 <main>
@@ -108,7 +101,7 @@
     <Grid dotColor="black" dotOpacity={30} dotSize={1} />
 
     {#each $cards as card}
-    {#if positionableInView(card.posX, card.posY, card.width, card.height, $viewX, $viewY, $settings.CHUNK_CULL_MARGIN, viewPort, $zoom)}
+    {#if positionableInView(card.posX, card.posY, card.width, card.height, $viewX, $viewY, 2000, viewPort, $zoom)}
     <Positionable positionable={card} class="card">
       <Draggable
         key={card.key}
@@ -121,6 +114,10 @@
       >
         frag me
       </Draggable>
+      <Resizable positionable={card} direction="wn" style="position: absolute; bottom:0;right:0;">x</Resizable>
+      <Resizable positionable={card} direction="ne" style="position: absolute; bottom:0;left:0;">x</Resizable>
+      <Resizable positionable={card} direction="es" style="position: absolute; top:0;left:0;">x</Resizable>
+      <Resizable positionable={card} direction="sw" style="position: absolute; top:0;right:0;">x</Resizable>
       <div class="content" style="background-color: {randomCssColor()};">regular positionable</div>
     </Positionable>
     {/if}

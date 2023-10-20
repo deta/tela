@@ -4,10 +4,12 @@ import type { Writable } from "svelte/store";
 import type { IPositionable } from "$lib/Positionable.svelte";
 
 export interface IBoardSettings {
-  CAN_DRAW: boolean;
-  CAN_SELECT: boolean;
   CAN_PAN: boolean;
+  PAN_DIRECTION: "xy" | "x" | "y";
+
+  CAN_DRAW: boolean;
   CAN_ZOOM: boolean;
+  CAN_SELECT: boolean;
 
   SNAP_TO_GRID: boolean;
   GRID_SIZE: number;
@@ -30,6 +32,9 @@ export interface IBoardSettings {
   CHUNK_SIZE: number;
   CHUNK_CULL_MARGIN: number;
   CHUNK_WARM_MARGIN: number;
+
+  // Key property name used for positionable
+  POSITIONABLE_KEY: string;
 
   // dev stuff
   DEV: {

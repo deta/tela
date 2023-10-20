@@ -14,6 +14,8 @@
   import type { IBoard, IBoardSettings } from "./types/Board.type.js";
   import { isBrowser, snapToGrid } from "./utils.js";
   import type { Tweened } from "svelte/motion";
+  import { scale } from "svelte/transition";
+  import { cubicInOut } from "svelte/easing";
 
   // export let positionable: IPositionable;
   export let key: string;
@@ -109,6 +111,7 @@
   class:dragging
   style="{transformCss} {$$restProps.style || ''}"
   bind:this={htmlEl}
+  transition:scale={{ duration: 120, opacity: 0, start: 0.8, easing: cubicInOut}}
 >
   <!-- {#if $zoom > 0.6} -->
   <slot />

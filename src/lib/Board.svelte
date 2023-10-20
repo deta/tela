@@ -6,6 +6,8 @@
   export function createSettings(settings: DeepPartial<IBoardSettings>): Writable<IBoardSettings> {
     return writable({
       CAN_PAN: true,
+      PAN_DIRECTION: "xy",
+
       CAN_DRAW: true,
       CAN_ZOOM: true,
       CAN_SELECT: true,
@@ -18,6 +20,8 @@
       CHUNK_SIZE: 2000,
       CHUNK_CULL_MARGIN: 2000,
       CHUNK_WARM_MARGIN: 1,
+
+      POSITIONABLE_KEY: "key",
 
       ...settings,
       BOUNDS: {
@@ -155,7 +159,7 @@
           s.mode = "auto-panning";
           return s;
         })
-        const p = panTo(get(state).viewOffset, x, y, duration, delay);
+        const p = panTo(get(state).viewOffset, x, y, duration, delay, get(settings).BOUNDS);
         p.then(() => {
           state.update(s => {
             s.mode = "draw";
@@ -183,15 +187,15 @@
 
   export function moveToStackingTop(stack: Writable<string[]>, key: string) {
     const l = get(stack).length;
-    console.time(`[StackingOrder-update :: n = ${l}]`); // todo: make debug only
+    // console.time(`[StackingOrder-update :: n = ${l}]`); // todo: make debug only
     stack.update(s => {
       const i = s.indexOf(key);
+      s.push(key);
       if (i === -1) return s;
       s.splice(i, 1);
-      s.push(key);
       return s;
     });
-    console.timeEnd(`[StackingOrder-update :: n = ${l}]`);
+    // console.timeEnd(`[StackingOrder-update :: n = ${l}]`);
   }
 </script>
 
@@ -209,6 +213,8 @@
   export let board: IBoard; // "exported" with custom properties
   //export let chunks: Writable<Map<string, Writable<IPositionable[]>>> = writable(new Map());
   export let stackingOrder: Writable<string[]>;
+  export let preTransform: string | null = null;
+  export let postTransform: string | null = null;
 
   const dispatch = createEventDispatcher();
 
@@ -237,7 +243,7 @@
     size: { x: 0, y: 0 }
   };
 
-  $: transformCss = `transform-origin: top left; transform: scale(${$zoom}) translate3d(${-$viewX}px, ${-$viewY}px, 0);`;
+  $: transformCss = `transform-origin: top left; transform: ${preTransform || ''} ${$zoom !== 1 ? `scale(${$zoom})` : ''} translate3d(${-$viewX}px, ${-$viewY}px, 0) ${postTransform || ''};`;
 
   // $: selectionCss = `transform: translate(${
   //   $settings.SNAP_TO_GRID ? snapToGrid(Math.floor($viewX + (selectState.pos.x - 0.5) / $zoom), $settings.GRID_SIZE!) : $viewX + selectState.pos.x / $zoom
@@ -296,6 +302,7 @@
 
   // UI Handlers
   function onWheel(e: WheelEvent) {
+    if (!hasClassOrParentWithClass(e.target as HTMLElement, "tela-container")) return;
     if (e.ctrlKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -328,8 +335,8 @@
 
       $state.mode = "panning";
 
-      const deltaX = e.deltaX / $zoom;
-      const deltaY = e.deltaY / $zoom;
+      const deltaX = ($settings.PAN_DIRECTION === "xy" || $settings.PAN_DIRECTION === "x") ? e.deltaX / $zoom : 0;
+      const deltaY = ($settings.PAN_DIRECTION === "xy" || $settings.PAN_DIRECTION === "y") ? e.deltaY / $zoom : 0;
 
       const boundX = clamp(
         $viewX + deltaX,
@@ -344,6 +351,10 @@
 
       $state.viewOffset.x.set(boundX, { duration: 0 });
       $state.viewOffset.y.set(boundY, { duration: 0 });
+
+      if (boundX % 3 === 0) { // todo: not only x !!
+        debounce("tela_board_pan_done", 250, () => dispatch("panDone", { offset: $state.viewOffset }));
+      }
 
       debounce("tela_trackpadPanModeReset", 60, () => $state.mode = "draw");
     }
@@ -563,19 +574,18 @@
   </div>
 {/if}
 
-<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp}/>
+<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} on:wheel|nonpassive={onWheel}/>
 
 <div
-  class="container"
+  class="tela-container"
   on:mousedown={onMouseDown}
   on:touchstart|nonpassive={onMouseDown}
-  on:wheel|nonpassive={onWheel}
   bind:this={containerEl}
 >
-  {#if ["select", "zoom", "pan", "panning"].includes($mode)}
+  <div class="board mode-{$mode}" style="{transformCss} {$$restProps.style || ''}" on:mousedown={onBoardMouseDown}>
+    <!-- {#if ["select", "zoom", "pan", "panning"].includes($mode)}
     <div class="dragIntercept"></div>
-  {/if}
-  <div class="board mode-{$mode}" style={transformCss} on:mousedown={onBoardMouseDown}>
+  {/if} -->
     {#if $mode === "select" || $mode === "drawing"}
       <div class="selection-rect" style={selectionCss} />
       <!-- <div id="dragIntercept">
@@ -586,11 +596,11 @@
     <slot name="meta" />
 
     <slot/>
-  </div>
+    </div>
 </div>
 
 <style>
-  .container {
+  .tela-container {
     width: 100%;
     height: 100%;
 
@@ -624,6 +634,5 @@
     top: 0;
     left: 0;
     z-index: 99999;
-    background: rgba(0, 0, 0, 0.1);
   }
 </style>

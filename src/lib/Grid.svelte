@@ -49,7 +49,7 @@
   .grid {
     position: relative;
     min-height: 100%;
-    z-index: 0;
+    z-index: -1; /* we dont set it -1 intentionally so that elements not in the stacking order are not clickable -> todo: maybe this is not wanted */
   }
   .grid > svg {
     position: absolute;

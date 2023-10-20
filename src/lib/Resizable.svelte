@@ -112,6 +112,8 @@
     $state.mode = "draw"; // todo: fix
 
     const clamped = clampSize({ x: width, y: height });
+    x = $settings.SNAP_TO_GRID ? snapToGrid(x, $settings.GRID_SIZE!) : x;
+    y = $settings.SNAP_TO_GRID ? snapToGrid(y, $settings.GRID_SIZE!) : y;
     width = $settings.SNAP_TO_GRID ? snapToGrid(clamped.x, $settings.GRID_SIZE!) : clamped.x;
     height = $settings.SNAP_TO_GRID ? snapToGrid(clamped.y, $settings.GRID_SIZE!) : clamped.y;
 

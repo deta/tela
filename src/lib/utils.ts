@@ -22,7 +22,7 @@ export function hasClassOrParentWithClass(element: HTMLElement, className: strin
 }
 
 export function snapToGrid(value: number, snap: number): number {
-  return Math.round(value / snap) * snap;
+  return Math.floor(Math.round(value / snap) * snap);
 }
 
 export function rectsIntersect(a: Vec4, b: Vec4) {

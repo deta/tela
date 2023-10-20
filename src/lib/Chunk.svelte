@@ -44,8 +44,8 @@
       return (
         posX + width + CULL_MARGIN >= vX &&
         posY + height + CULL_MARGIN >= vY &&
-        posX - CULL_MARGIN <= vX + viewPort.x / zoom &&
-        posY - CULL_MARGIN <= vY + viewPort.y / zoom
+        posX - CULL_MARGIN <= vX + viewPort.x / (zoom * 0.5) &&
+        posY - CULL_MARGIN <= vY + viewPort.y / (zoom * 0.5)
       );
     }
 </script>
@@ -85,7 +85,7 @@
     return (
       posX + width + $settings.CULL_MARGIN >= vX &&
       posY + height + $settings.CULL_MARGIN >= vY &&
-      posX - $settings.CULL_MARGIN <= vX + viewPort.w / $zoom &&
+      posX - $settings.CULL_MARGIN <= vX + viewPort.w / $zoom  &&
       posY - $settings.CULL_MARGIN <= vY + viewPort.h / $zoom
     );
   }

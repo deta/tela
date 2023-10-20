@@ -53,9 +53,14 @@
   - [ ] Position updates if snapping to grid
   - [ ] Make culling work correctly
 
+- !! have GPU accelerated option using transform3d
 - ! make element list a board prop, expose TPositionable array type & each block slot inside for declaring elements
+
 - Add full touch support
 - Extract default styling to importable css (mode cursors etc)
+- Auto pan board when dragging to the edge
+
+
 
 # Bugs / Missing
 
@@ -67,3 +72,11 @@
 - ON bounded -> window resize -> fix view jump
 - fix scrolling trackpag nested scrolls
 - when not fullscreen, window.innerwidth does not apply --> Replace with getting parent bounding box
+
+importing into ohe
+"exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js"
+    }
+  },
