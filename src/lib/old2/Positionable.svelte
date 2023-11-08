@@ -104,6 +104,7 @@
   });
 </script>
 
+<!-- transition:scale={{ duration: 120, opacity: 0, start: 0.8, easing: cubicInOut}} -->
 <svelte:element
   this="div"
   {...$$restProps}
@@ -111,7 +112,6 @@
   class:dragging
   style="{transformCss} {$$restProps.style || ''}"
   bind:this={htmlEl}
-  transition:scale={{ duration: 120, opacity: 0, start: 0.8, easing: cubicInOut}}
 >
   <!-- {#if $zoom > 0.6} -->
   <slot />
