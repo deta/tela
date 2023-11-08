@@ -28,8 +28,8 @@ export function posToAbsolute(
   // TODO: page scroll?
   // TODO: zoom?
   return {
-    x: (x + viewX - viewPort.x) / zoom,
-    y: (y + viewY - viewPort.y) / zoom
+    x: x / zoom + viewX - viewPort.x,
+    y: y / zoom + viewY - viewPort.y
   };
 }
 
