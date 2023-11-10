@@ -1,4 +1,7 @@
 <script context="module" lang="ts">
+  // TODO: REMOVE
+  export const dragDelay = writable(180);
+  export const dragAbortMin = writable(1);
   /**
    * Creates a board settings store with given values or defaults as fallback.
    * @param settings The settings to override.
@@ -239,7 +242,7 @@
       pan: {
         idle: "idle",
         _exit() {
-          dispatch("panEnd", {  });
+          dispatch("panEnd", {});
         }
       },
       autoPan: {
@@ -338,6 +341,38 @@
   // }, Array.from($chunks.entries()));
 
   const visibleChunks = writable(new Map<string, Writable<Writable<IPositionable<any>>[]>>());
+    // onDestroy(chunks.subscribe((_chunks) => {
+    //   const entries = Array.from($chunks.entries());
+    //   visibleChunks.update((v) => {
+    //   for (let i = 0; i < entries.length; i++) {
+    //     const e = entries[i];
+    //     const index = e[0];
+    //     const chunkX = parseInt(index.split(":")[0]);
+    //     const chunkY = parseInt(index.split(":")[1]);
+    //     if (
+    //       isInsideViewport(
+    //         chunkX * CHUNK_WIDTH,
+    //         chunkY * CHUNK_HEIGHT,
+    //         CHUNK_WIDTH,
+    //         CHUNK_HEIGHT,
+    //         $chunkOffset.x * CHUNK_WIDTH,
+    //         $chunkOffset.y * CHUNK_HEIGHT,
+    //         //$viewOffset.x,
+    //         //$viewOffset.y,
+    //         $viewPort,
+    //         $zoom,
+    //         CHUNK_WIDTH,
+    //         CHUNK_HEIGHT
+    //       )
+    //     ) {
+    //       v.set(index, e[1]);
+    //     } else {
+    //       v.delete(index);
+    //     }
+    //   }
+    //   return v;
+    // });
+    // }))
   $: {
     const entries = Array.from($chunks.entries());
     visibleChunks.update((v) => {
@@ -431,26 +466,29 @@
   //     });
   //   }
 
-  $: visibleCards = $positionables.length <= 50 ? $positionables : fastFilter(
-    (e) => {
-      const _e = get(e);
-      return isInsideViewport(
-        _e.x,
-        _e.y,
-        _e.width,
-        _e.height,
-        $viewOffset.x,
-        $viewOffset.y,
-        $viewPort,
-        $zoom,
-        0,
-        0
-      );
-    },
-    Array.from($visibleChunks.values())
-      .map((_p) => get(_p))
-      .flat()
-  );
+  $: visibleCards =
+    $positionables.length <= 50
+      ? $positionables
+      : fastFilter(
+          (e) => {
+            const _e = get(e);
+            return isInsideViewport(
+              _e.x,
+              _e.y,
+              _e.width,
+              _e.height,
+              $viewOffset.x,
+              $viewOffset.y,
+              $viewPort,
+              $zoom,
+              0,
+              0
+            );
+          },
+          Array.from($visibleChunks.values())
+            .map((_p) => get(_p))
+            .flat()
+        );
 
   // Initialize Z-Indices if provided
   // TODO: VERIFY
@@ -603,8 +641,8 @@
       $viewPort,
       $zoom
     );
-    e.stopPropagation();
-    e.preventDefault();
+    // e.stopPropagation();
+    // e.preventDefault();
 
     select_init.x = absX;
     select_init.y = absY;
@@ -633,8 +671,8 @@
       $zoom
     );
 
-    e.stopPropagation();
-    e.preventDefault();
+    // e.stopPropagation();
+    // e.preventDefault();
 
     select_init.x = absX;
     select_init.y = absY;
@@ -1122,6 +1160,8 @@
           <li><span>Hot Chunks:</span><span>{$visibleChunks.size}</span></li>
           <li><span>N-Cards:</span><span>{$positionables.length}</span></li>
           <li><span>Hot Cards:</span><span>{visibleCards.length}</span></li>
+          <li><span>Drag Start Delay ({$dragDelay}):</span><span><input type="range" bind:value={$dragDelay} min="1" max="3000"/></span></li>
+          <li><span>Drag Abort Move ({$dragAbortMin}):</span><span><input type="range" bind:value={$dragAbortMin} min="1" max="200"/></span></li>
           <!-- NOTE: Major perf hit due to conditional slot. -->
           <!-- TODO: Look into optimizing dev overlay perf -->
           <!-- <slot name="dev" /> -->
@@ -1181,8 +1221,9 @@
     padding: 4px;
     display: flex;
     flex-direction: column;
+    /* TODO: Reenable */
     user-select: none;
-    pointer-events: none;
+    /* pointer-events: none; */
   }
   .tela-container > .dev .dev-txt {
     margin: 0;
@@ -1193,8 +1234,9 @@
     padding: 4px;
     display: flex;
     flex-direction: column;
+    /* TODO: Reenable */
     user-select: none;
-    pointer-events: none;
+    /* pointer-events: none; */
   }
   :global(.tela-container > .dev .dev-txt li :first-child) {
     color: #b7b7c4;

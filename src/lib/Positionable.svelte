@@ -9,9 +9,10 @@
 </script>
 
 <script lang="ts" generics>
-  import { getContext } from "svelte";
+  import { getContext, onDestroy, onMount } from "svelte";
   import type { Writable } from "svelte/store";
   import type { IBoard, IBoardSettings } from "./types/Board.type.js";
+  import { on } from "./debugUtils.js";
 
   export let positionable: Writable<IPositionable<any>>;
   /**
@@ -26,6 +27,9 @@
 
   const state = board.state;
   const selection = $state.selection;
+
+  let el: HTMLElement;
+  let dragging = false;
   // $: z =
   //   $positionable.z !== undefined
   //     ? $positionable.z
@@ -36,6 +40,18 @@
   $: transformCss = `left: ${$positionable.x}px; top: ${$positionable.y}px; width: ${$positionable.width}px; height: ${$positionable.height}px; z-index: ${$positionable.z}; contain-intrinsic-size: ${$positionable.width}px ${$positionable.height}px; ${contained ? 'contain: strict;' : ''}`;
   // $: transformCss = `left: ${$positionable.x - (Math.floor($positionable.x / CHUNK_WIDTH) * CHUNK_WIDTH)}px; top: ${$positionable.y  - (Math.floor($positionable.y / CHUNK_HEIGHT) * CHUNK_HEIGHT)}px; width: ${$positionable.width}px; height: ${$positionable.height}px; z-index: ${$positionable.key !== undefined ? $positionable.key : 0};`; // ${!visible ? 'display: none;' : ''} ${!visible ? 'content-visibility: hidden;' : ''}
   // $: transformCss = `left: 0; top: 0;transform: translate3d(${$positionable.x}px, ${$positionable.y}px, 0) scale(${$state.zoom}); width: ${$positionable.width}px; height: ${$positionable.height}px; z-index: ${$positionable.key !== undefined ? $positionable.key : 0};`;
+
+    function onDraggableStart() { dragging = true; }
+    function onDraggableEnd() { dragging = false; }
+
+  onMount(() => {
+    el.addEventListener("draggable_start", onDraggableStart);
+    el.addEventListener("draggable_end", onDraggableEnd);
+  })
+  onDestroy(() => {
+    el && el.removeEventListener("draggable_start", onDraggableStart);
+    el && el.removeEventListener("draggable_end", onDraggableEnd);
+  })
 </script>
 
 <!-- TODO: For Readonly mode, custom immutable version of this cmp -->
@@ -47,9 +63,10 @@
   data-key={$positionable[POSITIONABLE_KEY]}
   {...$$restProps}
   style={transformCss}
-  class="positionable {$selection.has($positionable[POSITIONABLE_KEY])
-    ? 'selected'
-    : ''} {$$restProps.class || ''}"
+  class="positionable {$$restProps.class || ''}"
+  class:selected={$selection.has($positionable[POSITIONABLE_KEY])}
+  class:dragging
+    bind:this={el}
 >
   <slot />
 </div>
