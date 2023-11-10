@@ -12,6 +12,8 @@
   import { getContext, onDestroy, onMount } from "svelte";
   import type { Writable } from "svelte/store";
   import type { IBoard, IBoardSettings } from "./types/Board.type.js";
+  import { scale } from "svelte/transition";
+  import { cubicInOut } from "svelte/easing";
 
   export let positionable: Writable<IPositionable<any>>;
   /**
@@ -66,7 +68,8 @@
   class="positionable {$$restProps.class || ''}"
   class:selected={$selection.has($positionable[POSITIONABLE_KEY])}
   class:dragging
-    bind:this={el}
+  transition:scale={{ duration: 100, opacity: 0, start: 0.8, easing: cubicInOut }}
+  bind:this={el}
 >
   <slot />
 </div>
