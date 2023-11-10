@@ -1,7 +1,7 @@
 <script context="module" lang="ts">
   // TODO: REMOVE
   export const dragDelay = writable(180);
-  export const dragAbortMin = writable(1);
+  export const dragAbortMin = writable(8);
   /**
    * Creates a board settings store with given values or defaults as fallback.
    * @param settings The settings to override.
