@@ -1,7 +1,7 @@
 <script context="module" lang="ts">
   // TODO: REMOVE
-  export const dragDelay = writable(180);
-  export const dragAbortMin = writable(8);
+  // export const dragDelay = writable(180);
+  // export const dragAbortMin = writable(8);
   /**
    * Creates a board settings store with given values or defaults as fallback.
    * @param settings The settings to override.
@@ -45,6 +45,7 @@
 
   export function createBoard<BaseSt extends BaseState, Actions>(
     settings: Writable<IBoardSettings>,
+    stackingOrder: Writable<string[]>,
     initState: DeepPartial<IBoardState<BaseSt, Actions>>,
     initMode: string,
     modes: {}
@@ -69,7 +70,9 @@
           `left: ${v?.x || 0}px; top: ${v?.y || 0}px; width: ${v?.w || 0}px; height: ${
             v?.h || 0
           }px; z-index: 9999999;`
-      )
+      ),
+
+      stackingOrder,
     };
 
     const state = writable<IBoardState<BaseSt, Actions>>(initState as IBoardState<BaseSt, Actions>);
@@ -117,40 +120,45 @@
 
   export function moveToStackingTop(
     stack: Writable<string[]>,
-    positionable: Writable<IPositionable<any>>,
-    positionables: Writable<IPositionable<any>>[],
-    keyField: string
+    key: string,
   ) {
-    const l = get(stack).length;
-    // console.time(`[StackingOrder-update :: n = ${l}]`); // todo: make debug only
     stack.update((_stack) => {
-      positionable.update((p) => {
-        const i = _stack.indexOf(p[keyField]);
-        _stack.push(p[keyField]);
-        if (i !== -1) _stack.splice(i, 1);
-
-        p.z = _stack.indexOf(p[keyField]); //l + 1;
-        return p;
-      });
-      positionables.forEach((_p) => {
-        _p.update((p) => {
-          p.z = _stack.indexOf(p[keyField]);
-          return p;
-        });
-      });
+      const i = _stack.indexOf(key);
+      if (i !== -1) _stack.splice(i, 1);
+      _stack.push(key);
       return _stack;
     });
-    // stack.update((s) => {
+
+    // const l = get(stack).length;
+    // // console.time(`[StackingOrder-update :: n = ${l}]`); // todo: make debug only
+    // stack.update((_stack) => {
     //   positionable.update((p) => {
-    //     const i = s.indexOf(p.key);
-    //     s.push(p.key);
-    //     if (i !== -1) s.splice(i, 1);
-    //     p.z = s.indexOf(p.key);//l + 1;
+    //     const i = _stack.indexOf(p[keyField]);
+    //     _stack.push(p[keyField]);
+    //     if (i !== -1) _stack.splice(i, 1);
+
+    //     p.z = _stack.indexOf(p[keyField]); //l + 1;
     //     return p;
     //   });
-    //   return s;
+    //   positionables.forEach((_p) => {
+    //     _p.update((p) => {
+    //       p.z = _stack.indexOf(p[keyField]);
+    //       return p;
+    //     });
+    //   });
+    //   return _stack;
     // });
-    // console.timeEnd(`[StackingOrder-update :: n = ${l}]`);
+    // // stack.update((s) => {
+    // //   positionable.update((p) => {
+    // //     const i = s.indexOf(p.key);
+    // //     s.push(p.key);
+    // //     if (i !== -1) s.splice(i, 1);
+    // //     p.z = s.indexOf(p.key);//l + 1;
+    // //     return p;
+    // //   });
+    // //   return s;
+    // // });
+    // // console.timeEnd(`[StackingOrder-update :: n = ${l}]`);
   }
 </script>
 
@@ -169,6 +177,7 @@
     debounce,
     fastFilter,
     hasClassOrParentWithClass,
+    isInsidePositionable,
     isInsideViewport,
     posToAbsolute,
     rectsIntersect,
@@ -184,12 +193,9 @@
   export let settings: Writable<IBoardSettings>;
   export let board: IBoard<any, any>;
   export let positionables: Writable<Writable<IPositionable<any>>[]> = writable([]);
-  export let stackingOrder: Writable<string[]> | undefined = undefined;
-  if (stackingOrder === undefined) stackingOrder = writable([]);
 
   setContext("board", board);
   setContext("settings", settings);
-  setContext("stackingOrder", stackingOrder);
 
   const CHUNK_WIDTH = $settings.CHUNK_WIDTH;
   const CHUNK_HEIGHT = $settings.CHUNK_HEIGHT;
@@ -208,6 +214,7 @@
   $: mode = $state.mode;
   const selection = $state.selection;
   const selectionRect = $state.selectionRect;
+  const stackingOrder = $state.stackingOrder;
 
   $: transformCss = `transform-origin: top left; transform: ${
     $zoom !== 1 ? `scale(${$zoom * 100}%)` : ""
@@ -341,38 +348,38 @@
   // }, Array.from($chunks.entries()));
 
   const visibleChunks = writable(new Map<string, Writable<Writable<IPositionable<any>>[]>>());
-    // onDestroy(chunks.subscribe((_chunks) => {
-    //   const entries = Array.from($chunks.entries());
-    //   visibleChunks.update((v) => {
-    //   for (let i = 0; i < entries.length; i++) {
-    //     const e = entries[i];
-    //     const index = e[0];
-    //     const chunkX = parseInt(index.split(":")[0]);
-    //     const chunkY = parseInt(index.split(":")[1]);
-    //     if (
-    //       isInsideViewport(
-    //         chunkX * CHUNK_WIDTH,
-    //         chunkY * CHUNK_HEIGHT,
-    //         CHUNK_WIDTH,
-    //         CHUNK_HEIGHT,
-    //         $chunkOffset.x * CHUNK_WIDTH,
-    //         $chunkOffset.y * CHUNK_HEIGHT,
-    //         //$viewOffset.x,
-    //         //$viewOffset.y,
-    //         $viewPort,
-    //         $zoom,
-    //         CHUNK_WIDTH,
-    //         CHUNK_HEIGHT
-    //       )
-    //     ) {
-    //       v.set(index, e[1]);
-    //     } else {
-    //       v.delete(index);
-    //     }
-    //   }
-    //   return v;
-    // });
-    // }))
+  // onDestroy(chunks.subscribe((_chunks) => {
+  //   const entries = Array.from($chunks.entries());
+  //   visibleChunks.update((v) => {
+  //   for (let i = 0; i < entries.length; i++) {
+  //     const e = entries[i];
+  //     const index = e[0];
+  //     const chunkX = parseInt(index.split(":")[0]);
+  //     const chunkY = parseInt(index.split(":")[1]);
+  //     if (
+  //       isInsideViewport(
+  //         chunkX * CHUNK_WIDTH,
+  //         chunkY * CHUNK_HEIGHT,
+  //         CHUNK_WIDTH,
+  //         CHUNK_HEIGHT,
+  //         $chunkOffset.x * CHUNK_WIDTH,
+  //         $chunkOffset.y * CHUNK_HEIGHT,
+  //         //$viewOffset.x,
+  //         //$viewOffset.y,
+  //         $viewPort,
+  //         $zoom,
+  //         CHUNK_WIDTH,
+  //         CHUNK_HEIGHT
+  //       )
+  //     ) {
+  //       v.set(index, e[1]);
+  //     } else {
+  //       v.delete(index);
+  //     }
+  //   }
+  //   return v;
+  // });
+  // }))
   $: {
     const entries = Array.from($chunks.entries());
     visibleChunks.update((v) => {
@@ -466,7 +473,7 @@
   //     });
   //   }
 
-  $: visibleCards =
+  $: visiblePositionables =
     $positionables.length <= 50
       ? $positionables
       : fastFilter(
@@ -489,19 +496,6 @@
             .map((_p) => get(_p))
             .flat()
         );
-
-  // Initialize Z-Indices if provided
-  // TODO: VERIFY
-  if (stackingOrder) {
-    $positionables.forEach((_p) => {
-      const p = get(_p);
-      _p.update((p) => {
-        const i = get(stackingOrder!).indexOf(p["POSITIONABLE_KEY"]);
-        p.z = i === -1 ? 0 : i;
-        return p;
-      });
-    });
-  }
 
   onMount(() => {
     if (!resizeObserver) {
@@ -574,9 +568,17 @@
       const deltaY =
         $settings.PAN_DIRECTION === "xy" || $settings.PAN_DIRECTION === "y" ? e.deltaY / $zoom : 0;
 
-      if ($settings.PAN_DIRECTION === "x") {
-        deltaX += e.deltaY / $zoom;
-      }
+      // if (!hasClassOrParentWithClass(e.target as HTMLElement, "draggable")) {
+        if ($settings.PAN_DIRECTION === "x") {
+          deltaX += e.deltaY / $zoom;
+          // mode.pan();
+        }
+      // } else {
+      //   if (deltaX < 20 && deltaX > -20) {deltaX = 0;}
+      //   else {
+      //     mode.pan();
+      //   }
+      // }
 
       // TODO: BOUND MAX
       let boundX = Math.floor($viewOffset.x + deltaX); // TODO: works with zoom also? prob. not..
@@ -723,7 +725,7 @@
 
     selection.update((_selection) => {
       _selection.clear(); // TODO: Allow select multiple, off screen also?
-      visibleCards.forEach((_card) => {
+      visiblePositionables.forEach((_card) => {
         const c = get(_card);
         if (rectsIntersect({ x: c.x, y: c.y, w: c.width, h: c.height }, { x, y, w, h })) {
           _selection.add(c[POSITIONABLE_KEY]);
@@ -804,24 +806,7 @@
     );
 
     mode.dragging();
-    // moveToStackingTop(stackingOrder, positionable, positionables);
-    stackingOrder.update((_stack) => {
-      positionable.update((p) => {
-        const i = _stack.indexOf(p[POSITIONABLE_KEY]);
-        _stack.push(p.ke);
-        if (i !== -1) _stack.splice(i, 1);
-
-        p.z = _stack.indexOf(p[POSITIONABLE_KEY]); //l + 1;
-        return p;
-      });
-      visibleCards.forEach((_p) => {
-        _p.update((p) => {
-          p.z = _stack.indexOf(p[POSITIONABLE_KEY]);
-          return p;
-        });
-      });
-      return _stack;
-    });
+    moveToStackingTop(stackingOrder, get(positionable)[POSITIONABLE_KEY]);
 
     positionable.update((p) => {
       dragState.init.x = absX;
@@ -835,6 +820,7 @@
       p.y = absY - dragState.relativeOffset.y;
       return p;
     });
+    dispatch("draggableStart", { positionable });
   }
   function draggable_onMouseMove(
     e: CustomEvent<{
@@ -861,7 +847,6 @@
 
     // TODO: BOUNDS CHECKING
 
-    // moveToStackingTop(stackingOrder, positionable, positionables);
     positionable.update((p) => {
       p.x = absX - dragState.relativeOffset.x;
       p.y = absY - dragState.relativeOffset.y;
@@ -946,7 +931,7 @@
     });
 
     mode.idle();
-    dispatch("draggableChanged", { positionable });
+    dispatch("draggableEnd", positionable);
   }
 
   function resizable_onMouseDown(
@@ -968,6 +953,7 @@
     );
 
     mode.resizing();
+    moveToStackingTop(stackingOrder, get(positionable)[POSITIONABLE_KEY]);
 
     dragState.init.x = absX;
     dragState.init.y = absY;
@@ -1052,6 +1038,8 @@
       p.height = height;
       return p;
     });
+
+    dispatch("resizableStart", { positionable });
   }
   function resizable_onMouseUp(
     e: CustomEvent<{
@@ -1096,7 +1084,7 @@
     });
 
     mode.idle();
-    dispatch("resizableChanged", { positionable });
+    dispatch("resizableEnd", positionable);
   }
 
   onMount(() => {
@@ -1127,6 +1115,7 @@
   class="tela-container {$$restProps.class || ''}"
   bind:this={containerEl}
   on:wheel={onWheel}
+  on:wheel
   on:mousedown={(e) => {
     if (!hasClassOrParentWithClass(e.target, "draggable")) clearSelection();
   }}
@@ -1159,9 +1148,17 @@
           <li><span>N-Chunks:</span><span>{$chunks.size}</span></li>
           <li><span>Hot Chunks:</span><span>{$visibleChunks.size}</span></li>
           <li><span>N-Cards:</span><span>{$positionables.length}</span></li>
-          <li><span>Hot Cards:</span><span>{visibleCards.length}</span></li>
-          <li><span>Drag Start Delay ({$dragDelay}):</span><span><input type="range" bind:value={$dragDelay} min="1" max="3000"/></span></li>
-          <li><span>Drag Abort Move ({$dragAbortMin}):</span><span><input type="range" bind:value={$dragAbortMin} min="1" max="200"/></span></li>
+          <li><span>Hot Cards:</span><span>{visiblePositionables.length}</span></li>
+          <!-- <li>
+            <span>Drag Start Delay ({$dragDelay}):</span><span
+              ><input type="range" bind:value={$dragDelay} min="1" max="3000" /></span
+            >
+          </li>
+          <li>
+            <span>Drag Abort Move ({$dragAbortMin}):</span><span
+              ><input type="range" bind:value={$dragAbortMin} min="1" max="200" /></span
+            >
+          </li> -->
           <!-- NOTE: Major perf hit due to conditional slot. -->
           <!-- TODO: Look into optimizing dev overlay perf -->
           <!-- <slot name="dev" /> -->
@@ -1187,7 +1184,7 @@
     {/if}
 
     <!-- TODO: We dont need get(positionable)[POSITIONABLE_KEY], right? -->
-    {#each visibleCards as positionable (positionable)}
+    {#each visiblePositionables as positionable (positionable)}
       <slot {positionable} />
     {/each}
 

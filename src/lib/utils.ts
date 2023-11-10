@@ -86,6 +86,19 @@ export function isTagsOrParentWithTags(element: HTMLElement, tagNames: string[])
   else return false;
 }
 
+export function isInsidePositionable(e: HTMLElement) {
+  if (!e) {
+    return false;
+  }
+
+  if (e.classList.contains("positionable")) {
+    return e.dataset.id || false;
+  }
+
+  if (e.parentElement) return isInsidePositionable(e.parentElement);
+  else return false;
+}
+
 export function snapToGrid(value: number, snap: number): number {
   return Math.floor(Math.round(value / snap) * snap);
 }

@@ -16,7 +16,7 @@ export { default as Grid } from "./Grid.svelte";
 // export { default as Gradient } from "./Gradient.svelte";
 export { default as LazyComponent } from "./LazyComponent.svelte";
 
-export { rectsIntersect, lerp, clamp, invlerp, map, hasClassOrParentWithClass, debounce, snapToGrid } from "./utils.js";
+export { rectsIntersect, lerp, clamp, invlerp, map, hasClassOrParentWithClass, debounce, snapToGrid, isInsidePositionable } from "./utils.js";
 export type { IBoard, IBoardSettings, IBoardState, TBoardMode } from "./types/Board.type.js";
 export type { Vec2, DeepPartial, Vec4 } from "./types/Utils.type.js";
 

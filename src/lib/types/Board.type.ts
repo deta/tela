@@ -68,6 +68,7 @@ export interface IBoardState<BaseSt extends BaseState, Actions> {
   selectionRect: Writable<Vec4 | null>;
   selectionCss: Readable<string>;
   selection: Writable<Set<string>>;
+  stackingOrder: Writable<string[]>;
 }
 
 export interface IBoard<BaseSt extends BaseState, Actions> {

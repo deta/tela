@@ -9,20 +9,6 @@
   import Grid from "$lib/Grid.svelte";
   import Card from "./Card.svelte";
 
-  const settings = createSettings({
-    // PAN_DIRECTION: "x"
-    DEV: false
-  });
-  const board = createBoard(settings, {}, "idle", {
-    idle: { select: "select", pan: "pan" },
-    pan: { idle: "idle" },
-    select: { idle: "idle" },
-    metaSelect: { idle: "idle" }
-  });
-
-  let state = board.state;
-  $: ({ selectionCss } = $state);
-
   interface ICard {
     key: string;
     pos_x: number;
@@ -34,7 +20,7 @@
 
   let stackingOrder = writable<string[]>([]);
   let cards: Writable<Writable<IPositionable<"key">>[]> = writable(
-    Array.from({ length: 5000 }, (_, i) => {
+    Array.from({ length: 6000 }, (_, i) => {
       let x = {
         key: crypto.randomUUID() + i,
         x: Math.random() * 12000,
@@ -77,6 +63,24 @@
       return _cards;
     });
   }
+
+  const settings = createSettings({
+    // PAN_DIRECTION: "x",
+    DEV: false
+  });
+  const board = createBoard(settings, stackingOrder, {}, "idle", {
+    idle: { select: "select", pan: "pan" },
+    pan: { idle: "idle" },
+    select: { idle: "idle" },
+    metaSelect: { idle: "idle" }
+  });
+
+  let state = board.state;
+  $: ({ selectionCss } = $state);
+  state.update(v => {
+    v.stackingOrder.set(get(stackingOrder));
+    return v;
+  })
 
   // let lazyCard = () => import("./Card.svelte").then((m) => m.default);
 </script>
