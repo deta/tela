@@ -64,7 +64,7 @@
 <div
   data-key={$positionable[POSITIONABLE_KEY]}
   {...$$restProps}
-  style={transformCss}
+  style="{transformCss} {$$restProps.style || ''}"
   class="positionable {$$restProps.class || ''}"
   class:selected={$selection.has($positionable[POSITIONABLE_KEY])}
   class:dragging
