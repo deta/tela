@@ -27,7 +27,7 @@
 
       POSITIONABLE_KEY: "key",
 
-      DEV: true,
+      DEV: false,
 
       ...settings,
       BOUNDS: {
@@ -473,8 +473,10 @@
   //     });
   //   }
 
+  // TODO: make alwys loaded configurable
+  // TODO: add alwaysLoaded to positionable
   $: visiblePositionables =
-    $positionables.length <= 50
+    $positionables.length <= 10
       ? $positionables
       : fastFilter(
           (e) => {
@@ -1119,6 +1121,7 @@
   on:mousedown={(e) => {
     if (!hasClassOrParentWithClass(e.target, "draggable")) clearSelection();
   }}
+  on:mousedown
 >
   {#if $settings.DEV}
     <ul class="dev" style="list-style: none;">
