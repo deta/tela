@@ -593,14 +593,14 @@
       if (isFinite($settings.BOUNDS.minX) && boundX < $settings.BOUNDS.minX) {
         boundX = $settings.BOUNDS.minX;
         reachedBounds = true;
-      } else if (isFinite($settings.BOUNDS.maxX) && boundX > $settings.BOUNDS.maxX) {
-        boundX = $settings.BOUNDS.maxX;
+      } else if (isFinite($settings.BOUNDS.maxX) && boundX + $viewPort.w / $zoom > $settings.BOUNDS.maxX) {
+        boundX = $settings.BOUNDS.maxX - $viewPort.w / $zoom;
         reachedBounds = true;
       } else if (isFinite($settings.BOUNDS.minY) && boundY < $settings.BOUNDS.minY) {
         boundY = $settings.BOUNDS.minY;
         reachedBounds = true;
-      } else if (isFinite($settings.BOUNDS.maxY) && boundY > $settings.BOUNDS.maxY) {
-        boundY = $settings.BOUNDS.maxY;
+      } else if (isFinite($settings.BOUNDS.maxY) && boundY + $viewPort.h / $zoom > $settings.BOUNDS.maxY) {
+        boundY = $settings.BOUNDS.maxY - $viewPort.h / $zoom;
         reachedBounds = true;
       }
 
