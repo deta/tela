@@ -66,6 +66,7 @@
     const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
     const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
     el.dispatchEvent(new CustomEvent("draggable_onMouseMove", { bubbles: true, detail: { event: e, positionable, clientX, clientY } }));
+    el.dispatchEvent(new CustomEvent("draggable_move", { bubbles: true, detail: { event: e, positionable, clientX, clientY } }));
   }
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
