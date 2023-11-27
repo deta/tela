@@ -891,7 +891,8 @@
     init: { x: 0, y: 0 },
     curr: { x: 0, y: 0 },
     offset: { x: 0, y: 0 }, // TODO: Do we need this? -> Can we merge with relativeOffset?
-    relativeOffset: { x: 0, y: 0 }
+    relativeOffset: { x: 0, y: 0 },
+    positionableInit: { x: 0, y: 0 }
   };
   function draggable_onMouseDown(
     e: CustomEvent<{
@@ -921,6 +922,8 @@
       dragState.curr.y = absY;
       dragState.relativeOffset.x = absX - p.x;
       dragState.relativeOffset.y = absY - p.y;
+      dragState.positionableInit.x = p.x;
+      dragState.positionableInit.y = p.y;
 
       p.x = absX - dragState.relativeOffset.x;
       p.y = absY - dragState.relativeOffset.y;
@@ -978,6 +981,11 @@
       $zoom
     );
 
+    const initChunkX = Math.floor((dragState.positionableInit.x) / CHUNK_WIDTH);
+    const initChunkY = Math.floor((dragState.positionableInit.y) / CHUNK_WIDTH);
+    let targetChunkX: number;
+    let targetChunkY: number;
+
     positionable.update((p) => {
       let x = absX - dragState.relativeOffset.x;
       let y = absY - dragState.relativeOffset.y;
@@ -988,23 +996,35 @@
         p.x = x;
         p.y = y;
       }
+
+      targetChunkX = Math.floor((p.x) / CHUNK_WIDTH);
+      targetChunkY = Math.floor((p.y) / CHUNK_HEIGHT);
+
       return p;
     });
 
-    const initChunkX = Math.floor((dragState.init.x - dragState.relativeOffset.x) / CHUNK_WIDTH);
-    const initChunkY = Math.floor((dragState.init.y - dragState.relativeOffset.y) / CHUNK_HEIGHT);
-    const currChunkX = Math.floor((dragState.curr.x - dragState.relativeOffset.x) / CHUNK_WIDTH);
-    const currChunkY = Math.floor((dragState.curr.y - dragState.relativeOffset.y) / CHUNK_HEIGHT);
+    //const initChunkX = Math.floor((dragState.init.x - dragState.relativeOffset.x) / CHUNK_WIDTH);
+    //const initChunkY = Math.floor((dragState.init.y - dragState.relativeOffset.y) / CHUNK_HEIGHT);
+    //const targetChunkX = Math.floor((dragState.curr.x - dragState.relativeOffset.x) / CHUNK_WIDTH);
+    //const targetChunkY = Math.floor((dragState.curr.y - dragState.relativeOffset.y) / CHUNK_HEIGHT);
 
     // Update chunk
     // TODO: Snapping to grid can make this off by a chunk -> Use final position instead!
     chunks.update((_chunks) => {
       const initChunkId = `${initChunkX}:${initChunkY}`;
-      const currChunkId = `${currChunkX}:${currChunkY}`;
-      const initChunk = _chunks.get(initChunkId);
-      const currChunk = _chunks.get(currChunkId);
+      const targetChunkId = `${targetChunkX}:${targetChunkY}`;
 
-      if (initChunkId === currChunkId) return _chunks;
+      console.log("intiChunk", initChunkId)
+      console.log("targetChunk", targetChunkId)
+
+      if (initChunkId === targetChunkId) return _chunks;
+
+      const initChunk = _chunks.get(initChunkId);
+      const targetChunk = _chunks.get(targetChunkId);
+
+      console.log("initChunk", initChunk)
+      console.log("targetChunk", targetChunk)
+
 
       // TODO: THis is broken again!!
       if (initChunk === undefined) {
@@ -1024,10 +1044,10 @@
           _chunks.delete(initChunkId);
         }
       }
-      if (currChunk === undefined) {
-        _chunks.set(currChunkId, writable([positionable]));
+      if (targetChunk === undefined) {
+        _chunks.set(targetChunkId, writable([positionable]));
       } else {
-        currChunk.update((_positionables) => {
+        targetChunk.update((_positionables) => {
           _positionables.push(positionable);
           return _positionables;
         });
@@ -1067,6 +1087,8 @@
     dragState.curr.y = absY;
     dragState.relativeOffset.x = absX - clientX;
     dragState.relativeOffset.y = absY - clientY;
+    dragState.positionableInit.x = get(positionable).x;
+    dragState.positionableInit.y = get(positionable).y;
   }
   function resizable_onMouseMove(
     e: CustomEvent<{
@@ -1169,6 +1191,11 @@
     );
     // TODO: BOUNDS CHECKING& APPLY final pos
 
+    const initChunkX = Math.floor((dragState.positionableInit.x) / CHUNK_WIDTH);
+    const initChunkY = Math.floor((dragState.positionableInit.y) / CHUNK_WIDTH);
+    let targetChunkX: number;
+    let targetChunkY: number;
+
     positionable.update((p) => {
       let x = p.x;
       let y = p.y;
@@ -1186,7 +1213,53 @@
       p.y = y;
       p.width = width;
       p.height = height;
+
+      targetChunkX = Math.floor((p.x) / CHUNK_WIDTH);
+      targetChunkY = Math.floor((p.y) / CHUNK_HEIGHT);
       return p;
+    });
+
+    // TODO: Move into singel functoon
+    // Update chunk
+    // TODO: Snapping to grid can make this off by a chunk -> Use final position instead!
+    chunks.update((_chunks) => {
+      const initChunkId = `${initChunkX}:${initChunkY}`;
+      const targetChunkId = `${targetChunkX}:${targetChunkY}`;
+
+      if (initChunkId === targetChunkId) return _chunks;
+
+      const initChunk = _chunks.get(initChunkId);
+      const targetChunk = _chunks.get(targetChunkId);
+
+
+      // TODO: THis is broken again!!
+      if (initChunk === undefined) {
+        console.error(
+          initChunk !== undefined,
+          `[draggable_onMouseUp] Chunk ${initChunkId} not found!`
+        );
+      } else {
+        let empty = false;
+        initChunk.update((_positionables) => {
+          _positionables.splice(_positionables.indexOf(positionable), 1);
+          empty = _positionables.length === 0;
+          // TODO: What if indexOf returns -1?
+          return _positionables;
+        });
+        if (empty) {
+          _chunks.delete(initChunkId);
+        }
+      }
+      if (targetChunk === undefined) {
+        _chunks.set(targetChunkId, writable([positionable]));
+      } else {
+        targetChunk.update((_positionables) => {
+          _positionables.push(positionable);
+          return _positionables;
+        });
+      }
+
+      return _chunks;
     });
 
     mode.idle();
