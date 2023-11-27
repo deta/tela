@@ -203,12 +203,25 @@
 
   const state = board.state;
   const viewOffset = $state.viewOffset; // TODO: Can we use custom stores with requestAnimationFrame for scrolling?
-  const chunkOffset = derived(viewOffset, (v) => {
-    return {
-      x: Math.floor(v.x / CHUNK_WIDTH),
-      y: Math.floor(v.y / CHUNK_HEIGHT)
-    };
-  });
+
+  const chunkOffset = writable({x: 0, y: 0});
+  onDestroy(viewOffset.subscribe(_offset => {
+    const chunkX = Math.floor(_offset.x / CHUNK_WIDTH);
+    const chunkY = Math.floor(_offset.y / CHUNK_HEIGHT);
+    if ($chunkOffset.x !== chunkX) {
+      chunkOffset.update(v => {
+        v.x = chunkX;
+        return v;
+      })
+    }
+    if ($chunkOffset.y !== chunkY) {
+      chunkOffset.update(v => {
+        v.y = chunkY;
+        return v;
+      })
+    }
+  }));
+
   const viewPort = $state.viewPort;
   const zoom = $state.zoom;
   $: mode = $state.mode;
@@ -328,6 +341,13 @@
       });
     })
   );
+
+  // $: {
+  //   for (let [id, v] of $chunks.entries()) {
+  //     console.log(`Chunk ${id}: ${get(v).length}`)
+  //   }
+  // }
+
   // TODO: Allow option of IPositionable "keepLoaded" to keep chunk it is in & itself always loaded
   // $: visibleChunks = fastFilter((e) => {
   //   const s = e[0].split(":");
@@ -347,7 +367,7 @@
   //   );
   // }, Array.from($chunks.entries()));
 
-  const visibleChunks = writable(new Map<string, Writable<Writable<IPositionable<any>>[]>>());
+  // const visibleChunks = writable(new Map<string, Writable<Writable<IPositionable<any>>[]>>());
   // onDestroy(chunks.subscribe((_chunks) => {
   //   const entries = Array.from($chunks.entries());
   //   visibleChunks.update((v) => {
@@ -380,12 +400,96 @@
   //   return v;
   // });
   // }))
-  $: {
-    const entries = Array.from($chunks.entries());
-    visibleChunks.update((v) => {
-      for (let i = 0; i < entries.length; i++) {
-        const e = entries[i];
-        const index = e[0];
+  // onDestroy(chunks.subscribe(_chunks => {
+  //   const entries = Array.from(_chunks.entries());
+  //   visibleChunks.update((v) => {
+  //     // Remove deleted
+  //     const visibleIds = Array.from(v.keys());
+  //     for (let i = 0; i < visibleIds.length; i++) {
+  //       const id = visibleIds[i];
+  //       if (!_chunks.has(id)) {
+  //         v.delete(id);
+  //       }
+  //     }
+
+  //     // Add new
+  //     for (let i = 0; i < entries.length; i++) {
+  //       const e = entries[i];
+  //       const index = e[0];
+  //       const chunkX = parseInt(index.split(":")[0]);
+  //       const chunkY = parseInt(index.split(":")[1]);
+  //       if (
+  //         isInsideViewport(
+  //           chunkX * CHUNK_WIDTH,
+  //           chunkY * CHUNK_HEIGHT,
+  //           CHUNK_WIDTH,
+  //           CHUNK_HEIGHT,
+  //           $chunkOffset.x * CHUNK_WIDTH,
+  //           $chunkOffset.y * CHUNK_HEIGHT,
+  //           //$viewOffset.x,
+  //           //$viewOffset.y,
+  //           $viewPort,
+  //           $zoom,
+  //           CHUNK_WIDTH,
+  //           CHUNK_HEIGHT
+  //         )
+  //       ) {
+  //         v.set(index, e[1]);
+  //       } else {
+  //         v.delete(index);
+  //       }
+  //     }
+  //     return v;
+  //   });
+  // }));
+  // $: {
+  //   const entries = Array.from($chunks.entries());
+  //   visibleChunks.update((v) => {
+  //     // Remove deleted
+  //     chunks.update(_chunks => {
+  //       const visibleIds = Array.from(v.keys());
+  //       for (let i = 0; i < visibleIds.length; i++) {
+  //         const id = visibleIds[i];
+  //         if (!_chunks.has(id)) {
+  //           v.delete(id);
+  //         }
+  //       }
+  //       return _chunks;
+  //     })
+
+  //     for (let i = 0; i < entries.length; i++) {
+  //       const e = entries[i];
+  //       const index = e[0];
+  //       const chunkX = parseInt(index.split(":")[0]);
+  //       const chunkY = parseInt(index.split(":")[1]);
+  //       if (
+  //         isInsideViewport(
+  //           chunkX * CHUNK_WIDTH,
+  //           chunkY * CHUNK_HEIGHT,
+  //           CHUNK_WIDTH,
+  //           CHUNK_HEIGHT,
+  //           $chunkOffset.x * CHUNK_WIDTH,
+  //           $chunkOffset.y * CHUNK_HEIGHT,
+  //           //$viewOffset.x,
+  //           //$viewOffset.y,
+  //           $viewPort,
+  //           $zoom,
+  //           CHUNK_WIDTH,
+  //           CHUNK_HEIGHT
+  //         )
+  //       ) {
+  //         v.set(index, e[1]);
+  //       } else {
+  //         v.delete(index);
+  //       }
+  //     }
+  //     return v;
+  //   });
+  // }
+
+  const visibleChunks = derived([chunks, chunkOffset], (values) => {
+    return fastFilter((entry) => {
+        const index = entry[0];
         const chunkX = parseInt(index.split(":")[0]);
         const chunkY = parseInt(index.split(":")[1]);
         if (
@@ -404,15 +508,12 @@
             CHUNK_HEIGHT
           )
         ) {
-          v.set(index, e[1]);
+          return true
         } else {
-          v.delete(index);
+          return false;
         }
-      }
-      return v;
-    });
-  }
-
+    }, Array.from(values[0].entries()));
+  });
   // const visibleChunks = derived([chunks, viewPort], (v) => {
   //   const [chunks, _] = v;
   //   return fastFilter((entry) => {
@@ -475,6 +576,7 @@
 
   // TODO: make alwys loaded configurable
   // TODO: add alwaysLoaded to positionable
+  // TODO: Perf: Look into optimizing away the 'Array.from' everywhere.
   $: visiblePositionables =
     $positionables.length <= 10
       ? $positionables
@@ -494,8 +596,8 @@
               0
             );
           },
-          Array.from($visibleChunks.values())
-            .map((_p) => get(_p))
+          $visibleChunks
+            .map((_p) => get(_p[1]))
             .flat()
         );
 
@@ -514,6 +616,7 @@
       });
       resizeObserver.observe(containerEl);
     }
+    // TODO: Initialize visible chunks.
   });
 
   onDestroy(() => {
@@ -1150,7 +1253,7 @@
             >
           </li>
           <li><span>N-Chunks:</span><span>{$chunks.size}</span></li>
-          <li><span>Hot Chunks:</span><span>{$visibleChunks.size}</span></li>
+          <li><span>Hot Chunks:</span><span>{$visibleChunks.length}</span></li>
           <li><span>N-Cards:</span><span>{$positionables.length}</span></li>
           <li><span>Hot Cards:</span><span>{visiblePositionables.length}</span></li>
           <!-- <li>
@@ -1179,7 +1282,11 @@
     {/if}
 
     {#if $settings.DEV}
-      {#each Array.from($visibleChunks.keys()) as chunkId (chunkId)}
+    <!-- TODO: This requires updating lib users to Svelte4 -->
+    <!-- TODO: Perf use iterator is much faster: https://github.com/sveltejs/svelte/issues/7425#issuecomment-1461021936 -->
+    <!-- Depends on implementation using map -->
+    <!-- {#each $visibleChunks as [chunkId, _] (chunkId)} -->
+      {#each $visibleChunks as [chunkId, _] (chunkId)}
         {@const index = chunkId.split(":")}
         {@const chunkX = parseInt(index[0])}
         {@const chunkY = parseInt(index[1])}
