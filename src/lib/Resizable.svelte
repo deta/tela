@@ -64,6 +64,12 @@
         detail: { event: e, positionable, clientX, clientY }
       })
     );
+    el.dispatchEvent(
+      new CustomEvent("resizable_end", {
+        bubbles: true,
+        detail: { event: e, positionable, clientX, clientY }
+      })
+    );
 
     resizing = false;
     document.removeEventListener("mousemove", onMouseMove);
