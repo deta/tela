@@ -633,6 +633,30 @@
     });
   }
 
+  /**
+   * Bound x,y,width,height by boundaries from settings.
+   * @param x
+   * @param y
+   * @param width
+   * @param height
+   */
+  function applyBounds(x: number, y: number, width: number, height: number) {
+    let outX = x;
+    let outY = y;
+    if ($settings.BOUNDS?.minX !== null && x < $settings.BOUNDS!.minX) {
+      outX = $settings.BOUNDS!.minX;
+    } else if ($settings.BOUNDS?.maxX !== null && x + width > $settings.BOUNDS!.maxX) {
+      outX = $settings.BOUNDS!.maxX - width;
+    }
+
+    if ($settings.BOUNDS?.minY !== null && y < $settings.BOUNDS!.minY) {
+      outY = $settings.BOUNDS!.minY;
+    } else if ($settings.BOUNDS?.maxY !== null && y + height > $settings.BOUNDS!.maxY) {
+      outY = $settings.BOUNDS!.maxY - height;
+    }
+    return { x: outX, y: outY };
+  }
+
   // UI Handlers
   let lastViewX = 0;
   let lastViewY = 0;
@@ -954,11 +978,11 @@
     dragState.curr.x = absX;
     dragState.curr.y = absY;
 
-    // TODO: BOUNDS CHECKING
-
     positionable.update((p) => {
-      p.x = absX - dragState.relativeOffset.x;
-      p.y = absY - dragState.relativeOffset.y;
+      const { x: boundX, y: boundY } = applyBounds(absX - dragState.relativeOffset.x, absY - dragState.relativeOffset.y, p.width, p.height);
+
+      p.x = boundX;
+      p.y = boundY;
       return p;
     });
   }
@@ -986,15 +1010,21 @@
     let targetChunkX: number;
     let targetChunkY: number;
 
+    // TODO3: Issues cuz update positionable before chunks?
     positionable.update((p) => {
-      let x = absX - dragState.relativeOffset.x;
-      let y = absY - dragState.relativeOffset.y;
+      const { x: boundX, y: boundY } = applyBounds(absX - dragState.relativeOffset.x, absY - dragState.relativeOffset.y, p.width, p.height);
+
+      // p.x = boundX;
+      // p.y = boundY;
+
+      // let x = absX - dragState.relativeOffset.x;
+      // let y = absY - dragState.relativeOffset.y;
       if ($settings.SNAP_TO_GRID) {
-        p.x = snapToGrid(x, $settings.GRID_SIZE);
-        p.y = snapToGrid(y, $settings.GRID_SIZE);
+        p.x = snapToGrid(boundX, $settings.GRID_SIZE);
+        p.y = snapToGrid(boundY, $settings.GRID_SIZE);
       } else {
-        p.x = x;
-        p.y = y;
+        p.x = boundX;
+        p.y = boundY;
       }
 
       targetChunkX = Math.floor((p.x) / CHUNK_WIDTH);
@@ -1159,9 +1189,10 @@
       // TODO: MIN WIDHT
 
       // TODO: BOUNDS CHECKING
+      const { x: boundX, y: boundY } = applyBounds(x, y, width, height);
 
-      p.x = x;
-      p.y = y;
+      p.x = boundX;
+      p.y = boundY;
       p.width = width;
       p.height = height;
       return p;
@@ -1209,8 +1240,10 @@
         height = snapToGrid(height, $settings.GRID_SIZE);
       }
 
-      p.x = x;
-      p.y = y;
+      const { x: boundX, y: boundY } = applyBounds(x, y, width, height);
+
+      p.x = boundX;
+      p.y = boundY;
       p.width = width;
       p.height = height;
 
@@ -1235,7 +1268,7 @@
       // TODO: THis is broken again!!
       if (initChunk === undefined) {
         console.error(
-          initChunk !== undefined,
+          initChunk === undefined,
           `[draggable_onMouseUp] Chunk ${initChunkId} not found!`
         );
       } else {
