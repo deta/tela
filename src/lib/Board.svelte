@@ -322,6 +322,7 @@
   const chunks = writable(new Map<string, Writable<Writable<IPositionable<any>>[]>>());
   onDestroy(
     positionables.subscribe((_positionables) => {
+
       hoistedPositionables.update((_hoisted) => {
         chunks.update((_chunks) => {
           // Remove unused from hoisted.
@@ -334,18 +335,18 @@
 
           // Remove unused from chunks.
           for (const chunk of _chunks.entries()) {
-            const [chunkId, positionables] = chunk;
+            const [chunkId, chunkPositionables] = chunk;
             let empty = false;
-            positionables.update(_positionables => {
-              _positionables.forEach((_p, i) => {
-                const cI = `${Math.floor(get(_p).x / CHUNK_WIDTH)}:${Math.floor(get(_p).y / CHUNK_WIDTH)}`;
-                if (!_positionables.includes(_p) || chunkId !== cI) {
-                  _positionables.splice(i, 1);
-                  if (_positionables.length <= 0) empty = true;
+            chunkPositionables.update(_chunkPositionables => {
+              _chunkPositionables.forEach(_cP => {
+                if (!_positionables.includes(_cP)) {
+                  const index = _chunkPositionables.indexOf(_cP);
+                  if (index !== -1) _chunkPositionables.splice(index, 1);
+                  if (_chunkPositionables.length <= 0) empty = true;
                 }
-              });
-              return _positionables;
-            });
+              })
+              return _chunkPositionables;
+            })
             if (empty) _chunks.delete(chunkId);
           }
 
@@ -566,6 +567,7 @@
       }
     }, Array.from(values[0].entries()));
   });
+
   // const visibleChunks = derived([chunks, viewPort], (v) => {
   //   const [chunks, _] = v;
   //   return fastFilter((entry) => {
@@ -629,11 +631,39 @@
   // TODO: make alwys loaded configurable
   // TODO: add alwaysLoaded to positionable
   // TODO: Perf: Look into optimizing away the 'Array.from' everywhere.
-  $: visiblePositionables =
-    $positionables.length <= 10
-      ? $positionables
+  // $: visiblePositionables =
+  //   $positionables.length <= 10
+  //     ? $positionables
+  //     : [
+  //         ...$hoistedPositionables,
+  //         ...fastFilter((e) => {
+  //           const _e = get(e);
+  //           return (
+  //             !_e.hoisted ||
+  //             isInsideViewport(
+  //               _e.x,
+  //               _e.y,
+  //               _e.width,
+  //               _e.height,
+  //               $viewOffset.x,
+  //               $viewOffset.y,
+  //               $viewPort,
+  //               $zoom,
+  //               0,
+  //               0
+  //             )
+  //           );
+  //         }, $visibleChunks.map((_p) => get(_p[1])).flat())
+  //       ];
+
+  const visiblePositionables = derived([positionables, hoistedPositionables, visibleChunks], (values) => {
+    const _positionables = values[0];
+    const _hoistedPositionables = values[1];
+    const _visibleChunks = values[2];
+    return _positionables.length <= 10
+      ? _positionables
       : [
-          ...$hoistedPositionables,
+          ..._hoistedPositionables,
           ...fastFilter((e) => {
             const _e = get(e);
             return (
@@ -651,8 +681,9 @@
                 0
               )
             );
-          }, $visibleChunks.map((_p) => get(_p[1])).flat())
+          }, _visibleChunks.map((_p) => get(_p[1])).flat())
         ];
+  });
 
   onMount(() => {
     if (!resizeObserver) {
@@ -1059,7 +1090,6 @@
     }>
   ) {
     const { positionable, clientX, clientY } = e.detail;
-    // TODO: BOUNDS CHECKING
     const { x: absX, y: absY } = posToAbsolute(
       clientX,
       clientY,
@@ -1106,9 +1136,6 @@
         if (initChunkId === targetChunkId) return _chunks;
         const initChunk = _chunks.get(initChunkId);
 
-        console.warn("initChunk", initChunkId);
-        console.warn("targetChunk", targetChunkId);
-
         if (initChunk === undefined) {
           console.error(
             initChunk !== undefined,
@@ -1119,7 +1146,6 @@
           initChunk.update((_positionables) => {
             const i = _positionables.indexOf(positionable);
             _positionables.splice(i, 1);
-            console.warn(`removed from initChunk @ ${i}`)
             empty = _positionables.length === 0;
             // TODO: What if indexOf returns -1?
             return _positionables;
@@ -1529,7 +1555,7 @@
           <li><span>N-Cards:</span><span>{$positionables.length}</span></li>
           <li>
             <span>Hot Cards:</span><span
-              >{visiblePositionables.length}
+              >{$visiblePositionables.length}
               <small>({$hoistedPositionables.length} hoisted)</small></span
             >
           </li>
@@ -1571,7 +1597,7 @@
       {/each}
     {/if}
 
-    {#each visiblePositionables as positionable (get(positionable)[POSITIONABLE_KEY])}
+    {#each $visiblePositionables as positionable (get(positionable)[POSITIONABLE_KEY])}
       <slot {positionable} />
     {/each}
 
