@@ -333,16 +333,21 @@
           });
 
           // Remove unused from chunks.
-          _chunks.forEach((_c) => {
-            _c.update((_c) => {
-              _c.forEach((_p, i) => {
-                if (!_positionables.includes(_p)) {
-                  _c.splice(i, 1);
+          for (const chunk of _chunks.entries()) {
+            const [chunkId, positionables] = chunk;
+            let empty = false;
+            positionables.update(_positionables => {
+              _positionables.forEach((_p, i) => {
+                const cI = `${Math.floor(get(_p).x / CHUNK_WIDTH)}:${Math.floor(get(_p).y / CHUNK_WIDTH)}`;
+                if (!_positionables.includes(_p) || chunkId !== cI) {
+                  _positionables.splice(i, 1);
+                  if (_positionables.length <= 0) empty = true;
                 }
               });
-              return _c;
+              return _positionables;
             });
-          });
+            if (empty) _chunks.delete(chunkId);
+          }
 
           _positionables.forEach((_positionable) => {
             const p = get(_positionable);
@@ -1094,33 +1099,16 @@
       targetChunkX = Math.floor(p.x / CHUNK_WIDTH);
       targetChunkY = Math.floor(p.y / CHUNK_HEIGHT);
 
-      return p;
-    });
-
-    //const initChunkX = Math.floor((dragState.init.x - dragState.relativeOffset.x) / CHUNK_WIDTH);
-    //const initChunkY = Math.floor((dragState.init.y - dragState.relativeOffset.y) / CHUNK_HEIGHT);
-    //const targetChunkX = Math.floor((dragState.curr.x - dragState.relativeOffset.x) / CHUNK_WIDTH);
-    //const targetChunkY = Math.floor((dragState.curr.y - dragState.relativeOffset.y) / CHUNK_HEIGHT);
-
-    // Update chunk
-    // TODO: Snapping to grid can make this off by a chunk -> Use final position instead!
-    if (!get(positionable).hoisted) {
-      chunks.update((_chunks) => {
+      // Remove from old chunk (It will automatically get added to the new one by the reactive logic at the beginning).
+      chunks.update(_chunks => {
         const initChunkId = `${initChunkX}:${initChunkY}`;
         const targetChunkId = `${targetChunkX}:${targetChunkY}`;
-
-        console.log("intiChunk", initChunkId);
-        console.log("targetChunk", targetChunkId);
-
         if (initChunkId === targetChunkId) return _chunks;
-
         const initChunk = _chunks.get(initChunkId);
-        const targetChunk = _chunks.get(targetChunkId);
 
-        console.log("initChunk", initChunk);
-        console.log("targetChunk", targetChunk);
+        console.warn("initChunk", initChunkId);
+        console.warn("targetChunk", targetChunkId);
 
-        // TODO: THis is broken again!!
         if (initChunk === undefined) {
           console.error(
             initChunk !== undefined,
@@ -1129,7 +1117,9 @@
         } else {
           let empty = false;
           initChunk.update((_positionables) => {
-            _positionables.splice(_positionables.indexOf(positionable), 1);
+            const i = _positionables.indexOf(positionable);
+            _positionables.splice(i, 1);
+            console.warn(`removed from initChunk @ ${i}`)
             empty = _positionables.length === 0;
             // TODO: What if indexOf returns -1?
             return _positionables;
@@ -1138,18 +1128,68 @@
             _chunks.delete(initChunkId);
           }
         }
-        if (targetChunk === undefined) {
-          _chunks.set(targetChunkId, writable([positionable]));
-        } else {
-          targetChunk.update((_positionables) => {
-            _positionables.push(positionable);
-            return _positionables;
-          });
-        }
 
         return _chunks;
-      });
-    }
+      })
+
+      return p;
+    });
+
+    positionables.update(v => v);
+
+    //const initChunkX = Math.floor((dragState.init.x - dragState.relativeOffset.x) / CHUNK_WIDTH);
+    //const initChunkY = Math.floor((dragState.init.y - dragState.relativeOffset.y) / CHUNK_HEIGHT);
+    //const targetChunkX = Math.floor((dragState.curr.x - dragState.relativeOffset.x) / CHUNK_WIDTH);
+    //const targetChunkY = Math.floor((dragState.curr.y - dragState.relativeOffset.y) / CHUNK_HEIGHT);
+
+    // Update chunk
+    // TODO: Snapping to grid can make this off by a chunk -> Use final position instead!
+    // if (!get(positionable).hoisted) {
+    //   chunks.update((_chunks) => {
+    //     const initChunkId = `${initChunkX}:${initChunkY}`;
+    //     const targetChunkId = `${targetChunkX}:${targetChunkY}`;
+
+    //     console.log("intiChunk", initChunkId);
+    //     console.log("targetChunk", targetChunkId);
+
+    //     if (initChunkId === targetChunkId) return _chunks;
+
+    //     const initChunk = _chunks.get(initChunkId);
+    //     const targetChunk = _chunks.get(targetChunkId);
+
+    //     console.log("initChunk", initChunk);
+    //     console.log("targetChunk", targetChunk);
+
+    //     // TODO: THis is broken again!!
+    //     // if (initChunk === undefined) {
+    //     //   console.error(
+    //     //     initChunk !== undefined,
+    //     //     `[draggable_onMouseUp] Chunk ${initChunkId} not found!`
+    //     //   );
+    //     // } else {
+    //     //   let empty = false;
+    //     //   initChunk.update((_positionables) => {
+    //     //     _positionables.splice(_positionables.indexOf(positionable), 1);
+    //     //     empty = _positionables.length === 0;
+    //     //     // TODO: What if indexOf returns -1?
+    //     //     return _positionables;
+    //     //   });
+    //     //   if (empty) {
+    //     //     _chunks.delete(initChunkId);
+    //     //   }
+    //     // }
+    //     // if (targetChunk === undefined) {
+    //     //   _chunks.set(targetChunkId, writable([positionable]));
+    //     // } else {
+    //     //   targetChunk.update((_positionables) => {
+    //     //     _positionables.push(positionable);
+    //     //     return _positionables;
+    //     //   });
+    //     // }
+
+    //     return _chunks;
+    //   });
+    // }
 
     mode.idle();
     dispatch("draggableEnd", positionable);
