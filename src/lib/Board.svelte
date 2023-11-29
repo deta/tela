@@ -31,9 +31,9 @@
 
       ...settings,
       BOUNDS: {
-        minX: Infinity,
+        minX: -Infinity,
         maxX: Infinity,
-        minY: Infinity,
+        minY: -Infinity,
         maxY: Infinity,
         minZoom: 0.3,
         maxZoom: 1,
