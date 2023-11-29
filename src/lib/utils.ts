@@ -125,3 +125,10 @@ export const fastFilter = <T>(fn: (e: T) => boolean, arr: T[]) => {
   }
   return f;
 };
+
+export function hoistPositionable(key: string, el: HTMLElement) {
+  el.dispatchEvent(new CustomEvent("tela_hoist", { detail: key, bubbles: true }));
+}
+export function unHoistPositionable(key: string, el: HTMLElement) {
+  el.dispatchEvent(new CustomEvent("tela_unhoist", { detail: key, bubbles: true }));
+}

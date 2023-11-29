@@ -5,6 +5,7 @@
     width: number;
     height: number;
     z?: number;
+    readonly hoisted?: boolean;
   } & { [P in KeyName]: string };
 </script>
 
@@ -21,6 +22,7 @@
    * but prevents card content overflowing the card.
    */
   export let contained: boolean = true;
+  export let el: HTMLElement;
 
   const board = getContext<IBoard<any, any>>("board");
   const settings = getContext<Writable<IBoardSettings>>("settings");

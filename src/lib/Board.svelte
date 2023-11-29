@@ -72,7 +72,7 @@
           }px; z-index: 9999999;`
       ),
 
-      stackingOrder,
+      stackingOrder
     };
 
     const state = writable<IBoardState<BaseSt, Actions>>(initState as IBoardState<BaseSt, Actions>);
@@ -118,10 +118,7 @@
     };
   }
 
-  export function moveToStackingTop(
-    stack: Writable<string[]>,
-    key: string,
-  ) {
+  export function moveToStackingTop(stack: Writable<string[]>, key: string) {
     stack.update((_stack) => {
       const i = _stack.indexOf(key);
       if (i !== -1) _stack.splice(i, 1);
@@ -204,23 +201,25 @@
   const state = board.state;
   const viewOffset = $state.viewOffset; // TODO: Can we use custom stores with requestAnimationFrame for scrolling?
 
-  const chunkOffset = writable({x: 0, y: 0});
-  onDestroy(viewOffset.subscribe(_offset => {
-    const chunkX = Math.floor(_offset.x / CHUNK_WIDTH);
-    const chunkY = Math.floor(_offset.y / CHUNK_HEIGHT);
-    if ($chunkOffset.x !== chunkX) {
-      chunkOffset.update(v => {
-        v.x = chunkX;
-        return v;
-      })
-    }
-    if ($chunkOffset.y !== chunkY) {
-      chunkOffset.update(v => {
-        v.y = chunkY;
-        return v;
-      })
-    }
-  }));
+  const chunkOffset = writable({ x: 0, y: 0 });
+  onDestroy(
+    viewOffset.subscribe((_offset) => {
+      const chunkX = Math.floor(_offset.x / CHUNK_WIDTH);
+      const chunkY = Math.floor(_offset.y / CHUNK_HEIGHT);
+      if ($chunkOffset.x !== chunkX) {
+        chunkOffset.update((v) => {
+          v.x = chunkX;
+          return v;
+        });
+      }
+      if ($chunkOffset.y !== chunkY) {
+        chunkOffset.update((v) => {
+          v.y = chunkY;
+          return v;
+        });
+      }
+    })
+  );
 
   const viewPort = $state.viewPort;
   const zoom = $state.zoom;
@@ -318,26 +317,74 @@
 
   let resizeObserver: ResizeObserver;
   const select_init = { x: 0, y: 0 };
+  // Hoisted positionables will live outside the chunking / culling -> Always be loaded
+  const hoistedPositionables = writable<Writable<IPositionable<any>>[]>([]);
   const chunks = writable(new Map<string, Writable<Writable<IPositionable<any>>[]>>());
   onDestroy(
     positionables.subscribe((_positionables) => {
-      chunks.update((_chunks) => {
-        _positionables.forEach((_positionable) => {
-          const p = get(_positionable);
-          const cI = `${Math.floor(p.x / CHUNK_WIDTH)}:${Math.floor(p.y / CHUNK_HEIGHT)}`;
-          if (!_chunks.has(cI)) {
-            _chunks.set(cI, writable([_positionable]));
-          } else {
-            const c = _chunks.get(cI)!;
-            if (!get(c).includes(_positionable)) {
-              c.update((_c) => {
-                _c.push(_positionable);
-                return _c;
-              });
+      hoistedPositionables.update((_hoisted) => {
+        chunks.update((_chunks) => {
+          // Remove unused from hoisted.
+          _hoisted.forEach((_h, i) => {
+            // TODO: perf .forEach
+            if (!_positionables.includes(_h) || get(_h).hoisted !== true) {
+              _hoisted.splice(i, 1);
             }
-          }
+          });
+
+          // Remove unused from chunks.
+          _chunks.forEach((_c) => {
+            _c.update((_c) => {
+              _c.forEach((_p, i) => {
+                if (!_positionables.includes(_p)) {
+                  _c.splice(i, 1);
+                }
+              });
+              return _c;
+            });
+          });
+
+          _positionables.forEach((_positionable) => {
+            const p = get(_positionable);
+            const cI = `${Math.floor(p.x / CHUNK_WIDTH)}:${Math.floor(p.y / CHUNK_HEIGHT)}`;
+
+            // Add Hoisted.
+            // TODO: See if we can make this operate only on the positionable that changed instead of the whole array.
+            if (get(_positionable).hoisted === true) {
+              // Remove from chunk
+              if (_chunks.has(cI)) {
+                const c = _chunks.get(cI)!;
+                c.update((_c) => {
+                  const index = _c.indexOf(_positionable);
+                  if (index !== -1) _c.splice(index, 1);
+                  return _c;
+                });
+              }
+
+              if (!_hoisted.includes(_positionable)) {
+                _hoisted.push(_positionable);
+              }
+              return;
+            }
+
+            // Chunked behaviour.
+            else {
+              if (!_chunks.has(cI)) {
+                _chunks.set(cI, writable([_positionable]));
+              } else {
+                const c = _chunks.get(cI)!;
+                if (!get(c).includes(_positionable)) {
+                  c.update((_c) => {
+                    _c.push(_positionable);
+                    return _c;
+                  });
+                }
+              }
+            }
+          });
+          return _chunks;
         });
-        return _chunks;
+        return _hoisted;
       });
     })
   );
@@ -489,29 +536,29 @@
 
   const visibleChunks = derived([chunks, chunkOffset], (values) => {
     return fastFilter((entry) => {
-        const index = entry[0];
-        const chunkX = parseInt(index.split(":")[0]);
-        const chunkY = parseInt(index.split(":")[1]);
-        if (
-          isInsideViewport(
-            chunkX * CHUNK_WIDTH,
-            chunkY * CHUNK_HEIGHT,
-            CHUNK_WIDTH,
-            CHUNK_HEIGHT,
-            $chunkOffset.x * CHUNK_WIDTH,
-            $chunkOffset.y * CHUNK_HEIGHT,
-            //$viewOffset.x,
-            //$viewOffset.y,
-            $viewPort,
-            $zoom,
-            CHUNK_WIDTH,
-            CHUNK_HEIGHT
-          )
-        ) {
-          return true
-        } else {
-          return false;
-        }
+      const index = entry[0];
+      const chunkX = parseInt(index.split(":")[0]);
+      const chunkY = parseInt(index.split(":")[1]);
+      if (
+        isInsideViewport(
+          chunkX * CHUNK_WIDTH,
+          chunkY * CHUNK_HEIGHT,
+          CHUNK_WIDTH,
+          CHUNK_HEIGHT,
+          $chunkOffset.x * CHUNK_WIDTH,
+          $chunkOffset.y * CHUNK_HEIGHT,
+          //$viewOffset.x,
+          //$viewOffset.y,
+          $viewPort,
+          $zoom,
+          CHUNK_WIDTH,
+          CHUNK_HEIGHT
+        )
+      ) {
+        return true;
+      } else {
+        return false;
+      }
     }, Array.from(values[0].entries()));
   });
   // const visibleChunks = derived([chunks, viewPort], (v) => {
@@ -580,26 +627,27 @@
   $: visiblePositionables =
     $positionables.length <= 10
       ? $positionables
-      : fastFilter(
-          (e) => {
+      : [
+          ...$hoistedPositionables,
+          ...fastFilter((e) => {
             const _e = get(e);
-            return isInsideViewport(
-              _e.x,
-              _e.y,
-              _e.width,
-              _e.height,
-              $viewOffset.x,
-              $viewOffset.y,
-              $viewPort,
-              $zoom,
-              0,
-              0
+            return (
+              !_e.hoisted ||
+              isInsideViewport(
+                _e.x,
+                _e.y,
+                _e.width,
+                _e.height,
+                $viewOffset.x,
+                $viewOffset.y,
+                $viewPort,
+                $zoom,
+                0,
+                0
+              )
             );
-          },
-          $visibleChunks
-            .map((_p) => get(_p[1]))
-            .flat()
-        );
+          }, $visibleChunks.map((_p) => get(_p[1])).flat())
+        ];
 
   onMount(() => {
     if (!resizeObserver) {
@@ -699,10 +747,10 @@
         $settings.PAN_DIRECTION === "xy" || $settings.PAN_DIRECTION === "y" ? e.deltaY / $zoom : 0;
 
       // if (!hasClassOrParentWithClass(e.target as HTMLElement, "draggable")) {
-        if ($settings.PAN_DIRECTION === "x") {
-          deltaX += e.deltaY / $zoom;
-          // mode.pan();
-        }
+      if ($settings.PAN_DIRECTION === "x") {
+        deltaX += e.deltaY / $zoom;
+        // mode.pan();
+      }
       // } else {
       //   if (deltaX < 20 && deltaX > -20) {deltaX = 0;}
       //   else {
@@ -721,13 +769,19 @@
       if (isFinite($settings.BOUNDS.minX) && boundX < $settings.BOUNDS.minX) {
         boundX = $settings.BOUNDS.minX;
         reachedBounds = true;
-      } else if (isFinite($settings.BOUNDS.maxX) && boundX + $viewPort.w / $zoom > $settings.BOUNDS.maxX) {
+      } else if (
+        isFinite($settings.BOUNDS.maxX) &&
+        boundX + $viewPort.w / $zoom > $settings.BOUNDS.maxX
+      ) {
         boundX = $settings.BOUNDS.maxX - $viewPort.w / $zoom;
         reachedBounds = true;
       } else if (isFinite($settings.BOUNDS.minY) && boundY < $settings.BOUNDS.minY) {
         boundY = $settings.BOUNDS.minY;
         reachedBounds = true;
-      } else if (isFinite($settings.BOUNDS.maxY) && boundY + $viewPort.h / $zoom > $settings.BOUNDS.maxY) {
+      } else if (
+        isFinite($settings.BOUNDS.maxY) &&
+        boundY + $viewPort.h / $zoom > $settings.BOUNDS.maxY
+      ) {
         boundY = $settings.BOUNDS.maxY - $viewPort.h / $zoom;
         reachedBounds = true;
       }
@@ -979,7 +1033,12 @@
     dragState.curr.y = absY;
 
     positionable.update((p) => {
-      const { x: boundX, y: boundY } = applyBounds(absX - dragState.relativeOffset.x, absY - dragState.relativeOffset.y, p.width, p.height);
+      const { x: boundX, y: boundY } = applyBounds(
+        absX - dragState.relativeOffset.x,
+        absY - dragState.relativeOffset.y,
+        p.width,
+        p.height
+      );
 
       p.x = boundX;
       p.y = boundY;
@@ -1005,14 +1064,19 @@
       $zoom
     );
 
-    const initChunkX = Math.floor((dragState.positionableInit.x) / CHUNK_WIDTH);
-    const initChunkY = Math.floor((dragState.positionableInit.y) / CHUNK_WIDTH);
+    const initChunkX = Math.floor(dragState.positionableInit.x / CHUNK_WIDTH);
+    const initChunkY = Math.floor(dragState.positionableInit.y / CHUNK_WIDTH);
     let targetChunkX: number;
     let targetChunkY: number;
 
     // TODO3: Issues cuz update positionable before chunks?
     positionable.update((p) => {
-      const { x: boundX, y: boundY } = applyBounds(absX - dragState.relativeOffset.x, absY - dragState.relativeOffset.y, p.width, p.height);
+      const { x: boundX, y: boundY } = applyBounds(
+        absX - dragState.relativeOffset.x,
+        absY - dragState.relativeOffset.y,
+        p.width,
+        p.height
+      );
 
       // p.x = boundX;
       // p.y = boundY;
@@ -1027,8 +1091,8 @@
         p.y = boundY;
       }
 
-      targetChunkX = Math.floor((p.x) / CHUNK_WIDTH);
-      targetChunkY = Math.floor((p.y) / CHUNK_HEIGHT);
+      targetChunkX = Math.floor(p.x / CHUNK_WIDTH);
+      targetChunkY = Math.floor(p.y / CHUNK_HEIGHT);
 
       return p;
     });
@@ -1040,51 +1104,52 @@
 
     // Update chunk
     // TODO: Snapping to grid can make this off by a chunk -> Use final position instead!
-    chunks.update((_chunks) => {
-      const initChunkId = `${initChunkX}:${initChunkY}`;
-      const targetChunkId = `${targetChunkX}:${targetChunkY}`;
+    if (!get(positionable).hoisted) {
+      chunks.update((_chunks) => {
+        const initChunkId = `${initChunkX}:${initChunkY}`;
+        const targetChunkId = `${targetChunkX}:${targetChunkY}`;
 
-      console.log("intiChunk", initChunkId)
-      console.log("targetChunk", targetChunkId)
+        console.log("intiChunk", initChunkId);
+        console.log("targetChunk", targetChunkId);
 
-      if (initChunkId === targetChunkId) return _chunks;
+        if (initChunkId === targetChunkId) return _chunks;
 
-      const initChunk = _chunks.get(initChunkId);
-      const targetChunk = _chunks.get(targetChunkId);
+        const initChunk = _chunks.get(initChunkId);
+        const targetChunk = _chunks.get(targetChunkId);
 
-      console.log("initChunk", initChunk)
-      console.log("targetChunk", targetChunk)
+        console.log("initChunk", initChunk);
+        console.log("targetChunk", targetChunk);
 
-
-      // TODO: THis is broken again!!
-      if (initChunk === undefined) {
-        console.error(
-          initChunk !== undefined,
-          `[draggable_onMouseUp] Chunk ${initChunkId} not found!`
-        );
-      } else {
-        let empty = false;
-        initChunk.update((_positionables) => {
-          _positionables.splice(_positionables.indexOf(positionable), 1);
-          empty = _positionables.length === 0;
-          // TODO: What if indexOf returns -1?
-          return _positionables;
-        });
-        if (empty) {
-          _chunks.delete(initChunkId);
+        // TODO: THis is broken again!!
+        if (initChunk === undefined) {
+          console.error(
+            initChunk !== undefined,
+            `[draggable_onMouseUp] Chunk ${initChunkId} not found!`
+          );
+        } else {
+          let empty = false;
+          initChunk.update((_positionables) => {
+            _positionables.splice(_positionables.indexOf(positionable), 1);
+            empty = _positionables.length === 0;
+            // TODO: What if indexOf returns -1?
+            return _positionables;
+          });
+          if (empty) {
+            _chunks.delete(initChunkId);
+          }
         }
-      }
-      if (targetChunk === undefined) {
-        _chunks.set(targetChunkId, writable([positionable]));
-      } else {
-        targetChunk.update((_positionables) => {
-          _positionables.push(positionable);
-          return _positionables;
-        });
-      }
+        if (targetChunk === undefined) {
+          _chunks.set(targetChunkId, writable([positionable]));
+        } else {
+          targetChunk.update((_positionables) => {
+            _positionables.push(positionable);
+            return _positionables;
+          });
+        }
 
-      return _chunks;
-    });
+        return _chunks;
+      });
+    }
 
     mode.idle();
     dispatch("draggableEnd", positionable);
@@ -1222,8 +1287,8 @@
     );
     // TODO: BOUNDS CHECKING& APPLY final pos
 
-    const initChunkX = Math.floor((dragState.positionableInit.x) / CHUNK_WIDTH);
-    const initChunkY = Math.floor((dragState.positionableInit.y) / CHUNK_WIDTH);
+    const initChunkX = Math.floor(dragState.positionableInit.x / CHUNK_WIDTH);
+    const initChunkY = Math.floor(dragState.positionableInit.y / CHUNK_WIDTH);
     let targetChunkX: number;
     let targetChunkY: number;
 
@@ -1247,56 +1312,113 @@
       p.width = width;
       p.height = height;
 
-      targetChunkX = Math.floor((p.x) / CHUNK_WIDTH);
-      targetChunkY = Math.floor((p.y) / CHUNK_HEIGHT);
+      targetChunkX = Math.floor(p.x / CHUNK_WIDTH);
+      targetChunkY = Math.floor(p.y / CHUNK_HEIGHT);
       return p;
     });
 
     // TODO: Move into singel functoon
     // Update chunk
     // TODO: Snapping to grid can make this off by a chunk -> Use final position instead!
-    chunks.update((_chunks) => {
-      const initChunkId = `${initChunkX}:${initChunkY}`;
-      const targetChunkId = `${targetChunkX}:${targetChunkY}`;
+    if (!get(positionable).hoisted) {
+      chunks.update((_chunks) => {
+        const initChunkId = `${initChunkX}:${initChunkY}`;
+        const targetChunkId = `${targetChunkX}:${targetChunkY}`;
 
-      if (initChunkId === targetChunkId) return _chunks;
+        if (initChunkId === targetChunkId) return _chunks;
 
-      const initChunk = _chunks.get(initChunkId);
-      const targetChunk = _chunks.get(targetChunkId);
+        const initChunk = _chunks.get(initChunkId);
+        const targetChunk = _chunks.get(targetChunkId);
 
-
-      // TODO: THis is broken again!!
-      if (initChunk === undefined) {
-        console.error(
-          initChunk === undefined,
-          `[draggable_onMouseUp] Chunk ${initChunkId} not found!`
-        );
-      } else {
-        let empty = false;
-        initChunk.update((_positionables) => {
-          _positionables.splice(_positionables.indexOf(positionable), 1);
-          empty = _positionables.length === 0;
-          // TODO: What if indexOf returns -1?
-          return _positionables;
-        });
-        if (empty) {
-          _chunks.delete(initChunkId);
+        // TODO: THis is broken again!!
+        if (initChunk === undefined) {
+          console.error(
+            initChunk === undefined,
+            `[draggable_onMouseUp] Chunk ${initChunkId} not found!`
+          );
+        } else {
+          let empty = false;
+          initChunk.update((_positionables) => {
+            _positionables.splice(_positionables.indexOf(positionable), 1);
+            empty = _positionables.length === 0;
+            // TODO: What if indexOf returns -1?
+            return _positionables;
+          });
+          if (empty) {
+            _chunks.delete(initChunkId);
+          }
         }
-      }
-      if (targetChunk === undefined) {
-        _chunks.set(targetChunkId, writable([positionable]));
-      } else {
-        targetChunk.update((_positionables) => {
-          _positionables.push(positionable);
-          return _positionables;
-        });
-      }
+        if (targetChunk === undefined) {
+          _chunks.set(targetChunkId, writable([positionable]));
+        } else {
+          targetChunk.update((_positionables) => {
+            _positionables.push(positionable);
+            return _positionables;
+          });
+        }
 
-      return _chunks;
-    });
+        return _chunks;
+      });
+    }
 
     mode.idle();
     dispatch("resizableEnd", positionable);
+  }
+
+  function positionable_hoist(e: CustomEvent<string>) {
+    const key = e.detail;
+    const positionable = $positionables.find((p) => get(p)[POSITIONABLE_KEY] === key);
+    if (!positionable) {
+      console.error(`[TELA] Tried to hoist non-existing positionable: ${key}`);
+      return;
+    }
+
+    positionable.update((p) => {
+      // Remove from chunk
+      const cI = `${Math.floor(p.x / CHUNK_WIDTH)}:${Math.floor(p.y / CHUNK_HEIGHT)}`;
+      const chunk = $chunks.get(cI);
+      if (chunk !== undefined) {
+        chunks.update((_chunks) => {
+          let empty = false;
+          chunk.update((_chunk) => {
+            // TODO: Perf: Compare perf of findIndex vs indexOf
+            // const i = _chunk.findIndex(e => get(e)[POSITIONABLE_KEY] === key);
+            const i = _chunk.indexOf(positionable);
+            if (i !== -1) _chunk.splice(i, 1);
+            if (_chunk.length <= 0) empty = true;
+            return _chunk;
+          });
+          if (empty) {
+            _chunks.delete(cI);
+          }
+          return _chunks;
+        });
+      }
+
+      // @ts-ignore we want this!
+      p.hoisted = true;
+      return p;
+    });
+
+    positionables.update(v => v);
+  }
+  function positionable_unHoist(e: CustomEvent<string>) {
+    const key = e.detail;
+    const positionable = $positionables.find((p) => get(p)[POSITIONABLE_KEY] === key);
+    if (!positionable) {
+      console.error(`[TELA] Tried to un-hoist non-existing positionable: ${key}`);
+      return;
+    }
+    hoistedPositionables.update(_hoisted => {
+      return _hoisted;
+    })
+    positionable.update((p) => {
+      // @ts-ignore we want this!
+      p.hoisted = false;
+      return p;
+    });
+
+    positionables.update(v => v);
   }
 
   onMount(() => {
@@ -1306,6 +1428,8 @@
     containerEl.addEventListener("resizable_onMouseDown", resizable_onMouseDown);
     containerEl.addEventListener("resizable_onMouseMove", resizable_onMouseMove);
     containerEl.addEventListener("resizable_onMouseUp", resizable_onMouseUp);
+    containerEl.addEventListener("tela_hoist", positionable_hoist);
+    containerEl.addEventListener("tela_unhoist", positionable_unHoist);
   });
   onDestroy(() => {
     containerEl && containerEl.removeEventListener("draggable_onMouseDown", draggable_onMouseDown);
@@ -1314,6 +1438,8 @@
     containerEl && containerEl.removeEventListener("resizable_onMouseDown", resizable_onMouseDown);
     containerEl && containerEl.removeEventListener("resizable_onMouseMove", resizable_onMouseMove);
     containerEl && containerEl.removeEventListener("resizable_onMouseUp", resizable_onMouseUp);
+    containerEl && containerEl.removeEventListener("tela_hoist", positionable_hoist);
+    containerEl && containerEl.removeEventListener("tela_unhoist", positionable_unHoist);
   });
 </script>
 
@@ -1361,7 +1487,12 @@
           <li><span>N-Chunks:</span><span>{$chunks.size}</span></li>
           <li><span>Hot Chunks:</span><span>{$visibleChunks.length}</span></li>
           <li><span>N-Cards:</span><span>{$positionables.length}</span></li>
-          <li><span>Hot Cards:</span><span>{visiblePositionables.length}</span></li>
+          <li>
+            <span>Hot Cards:</span><span
+              >{visiblePositionables.length}
+              <small>({$hoistedPositionables.length} hoisted)</small></span
+            >
+          </li>
           <!-- <li>
             <span>Drag Start Delay ({$dragDelay}):</span><span
               ><input type="range" bind:value={$dragDelay} min="1" max="3000" /></span
@@ -1388,10 +1519,10 @@
     {/if}
 
     {#if $settings.DEV}
-    <!-- TODO: This requires updating lib users to Svelte4 -->
-    <!-- TODO: Perf use iterator is much faster: https://github.com/sveltejs/svelte/issues/7425#issuecomment-1461021936 -->
-    <!-- Depends on implementation using map -->
-    <!-- {#each $visibleChunks as [chunkId, _] (chunkId)} -->
+      <!-- TODO: This requires updating lib users to Svelte4 -->
+      <!-- TODO: Perf use iterator is much faster: https://github.com/sveltejs/svelte/issues/7425#issuecomment-1461021936 -->
+      <!-- Depends on implementation using map -->
+      <!-- {#each $visibleChunks as [chunkId, _] (chunkId)} -->
       {#each $visibleChunks as [chunkId, _] (chunkId)}
         {@const index = chunkId.split(":")}
         {@const chunkX = parseInt(index[0])}
@@ -1400,8 +1531,7 @@
       {/each}
     {/if}
 
-    <!-- TODO: We dont need get(positionable)[POSITIONABLE_KEY], right? -->
-    {#each visiblePositionables as positionable (positionable)}
+    {#each visiblePositionables as positionable (get(positionable)[POSITIONABLE_KEY])}
       <slot {positionable} />
     {/each}
 
