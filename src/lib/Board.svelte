@@ -968,7 +968,7 @@
 
     selection.update((_selection) => {
       _selection.clear(); // TODO: Allow select multiple, off screen also?
-      visiblePositionables.forEach((_card) => {
+      $visiblePositionables.forEach((_card) => {
         const c = get(_card);
         if (rectsIntersect({ x: c.x, y: c.y, w: c.width, h: c.height }, { x, y, w, h })) {
           _selection.add(c[POSITIONABLE_KEY]);
