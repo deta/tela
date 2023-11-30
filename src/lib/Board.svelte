@@ -1153,33 +1153,35 @@
       targetChunkY = Math.floor(p.y / CHUNK_HEIGHT);
 
       // Remove from old chunk (It will automatically get added to the new one by the reactive logic at the beginning).
-      chunks.update(_chunks => {
-        const initChunkId = `${initChunkX}:${initChunkY}`;
-        const targetChunkId = `${targetChunkX}:${targetChunkY}`;
-        if (initChunkId === targetChunkId) return _chunks;
-        const initChunk = _chunks.get(initChunkId);
+      if (!p.hoisted) {
+        chunks.update(_chunks => {
+          const initChunkId = `${initChunkX}:${initChunkY}`;
+          const targetChunkId = `${targetChunkX}:${targetChunkY}`;
+          if (initChunkId === targetChunkId) return _chunks;
+          const initChunk = _chunks.get(initChunkId);
 
-        if (initChunk === undefined) {
-          console.error(
-            initChunk !== undefined,
-            `[draggable_onMouseUp] Chunk ${initChunkId} not found!`
-          );
-        } else {
-          let empty = false;
-          initChunk.update((_positionables) => {
-            const i = _positionables.indexOf(positionable);
-            _positionables.splice(i, 1);
-            empty = _positionables.length === 0;
-            // TODO: What if indexOf returns -1?
-            return _positionables;
-          });
-          if (empty) {
-            _chunks.delete(initChunkId);
+          if (initChunk === undefined) {
+            console.error(
+              initChunk !== undefined,
+              `[draggable_onMouseUp] Chunk ${initChunkId} not found!`
+            );
+          } else {
+            let empty = false;
+            initChunk.update((_positionables) => {
+              const i = _positionables.indexOf(positionable);
+              _positionables.splice(i, 1);
+              empty = _positionables.length === 0;
+              // TODO: What if indexOf returns -1?
+              return _positionables;
+            });
+            if (empty) {
+              _chunks.delete(initChunkId);
+            }
           }
-        }
 
-        return _chunks;
-      })
+          return _chunks;
+        })
+      }
 
       return p;
     });
@@ -1461,6 +1463,7 @@
       console.error(`[TELA] Tried to hoist non-existing positionable: ${key}`);
       return;
     }
+    if (get(positionable).hoisted) return;
 
     positionable.update((p) => {
       // Remove from chunk
@@ -1498,6 +1501,7 @@
       console.error(`[TELA] Tried to un-hoist non-existing positionable: ${key}`);
       return;
     }
+    if (!get(positionable).hoisted) return;
     hoistedPositionables.update(_hoisted => {
       return _hoisted;
     })
