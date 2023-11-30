@@ -64,7 +64,7 @@
   class:selected={$selection.has($positionable[POSITIONABLE_KEY])}
   class:hoisted={$positionable.hoisted}
   class:dragging
-
+  transition:scale={{ duration: 100, opacity: 0, start: 0.8, easing: cubicInOut }}
   bind:this={el}
 >
   <slot />
