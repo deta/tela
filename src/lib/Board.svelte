@@ -662,7 +662,8 @@
     const _positionables = values[0];
     const _hoistedPositionables = values[1];
     const _visibleChunks = values[2];
-    const visible = _positionables.length <= 10
+    // TODO: Remove dev
+    const visible = _positionables.length <= 0
       ? _positionables
       : [
           ..._hoistedPositionables,
@@ -1049,7 +1050,6 @@
       $zoom
     );
 
-    mode.dragging();
     moveToStackingTop(stackingOrder, get(positionable)[POSITIONABLE_KEY]);
 
     positionable.update((p) => {
@@ -1066,7 +1066,6 @@
       p.y = absY - dragState.relativeOffset.y;
       return p;
     });
-    dispatch("draggableStart", { positionable });
   }
   function draggable_onMouseMove(
     e: CustomEvent<{
@@ -1086,6 +1085,12 @@
       $zoom
     );
 
+    let startedDragging = false;
+    if ($mode !== "dragging") {
+      startedDragging = true;
+      mode.dragging();
+    }
+
     dragState.offset.x = absX - dragState.init.x;
     dragState.offset.y = absY - dragState.init.y;
     dragState.curr.x = absX;
@@ -1103,6 +1108,10 @@
       p.y = boundY;
       return p;
     });
+
+    if (startedDragging) {
+      dispatch("draggableStart", { positionable });
+    }
   }
   function draggable_onMouseUp(
     e: CustomEvent<{
@@ -1410,7 +1419,6 @@
 
     // TODO: Move into singel functoon
     // Update chunk
-    // TODO: Snapping to grid can make this off by a chunk -> Use final position instead!
     if (!get(positionable).hoisted) {
       chunks.update((_chunks) => {
         const initChunkId = `${initChunkX}:${initChunkY}`;
