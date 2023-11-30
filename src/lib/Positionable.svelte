@@ -62,6 +62,7 @@
   style="{transformCss} {$$restProps.style || ''}"
   class="positionable {$$restProps.class || ''}"
   class:selected={$selection.has($positionable[POSITIONABLE_KEY])}
+  class:hoisted={$positionable.hoisted}
   class:dragging
 
   bind:this={el}
