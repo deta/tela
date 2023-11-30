@@ -185,7 +185,7 @@
   import ChunkOverlay from "./ChunkOverlay.svelte";
 
   const dispatch = createEventDispatcher();
-  let containerEl: HTMLElement;
+  export let containerEl: HTMLElement;
 
   export let settings: Writable<IBoardSettings>;
   export let board: IBoard<any, any>;
@@ -656,11 +656,13 @@
   //         }, $visibleChunks.map((_p) => get(_p[1])).flat())
   //       ];
 
+  // Store IDS of old visible positionables fro comparison to fire onPositionableEnter/Leave events
+  let oldVisiblePositionables: string[] = [];
   const visiblePositionables = derived([positionables, hoistedPositionables, visibleChunks], (values) => {
     const _positionables = values[0];
     const _hoistedPositionables = values[1];
     const _visibleChunks = values[2];
-    return _positionables.length <= 10
+    const visible = _positionables.length <= 10
       ? _positionables
       : [
           ..._hoistedPositionables,
@@ -683,6 +685,27 @@
             );
           }, _visibleChunks.map((_p) => get(_p[1])).flat())
         ];
+
+    const visibleIds = visible.map(e => get(e)[POSITIONABLE_KEY]);
+
+    // Leave events.
+    for (let i = 0; i < oldVisiblePositionables.length; i++) {
+      const id = oldVisiblePositionables[i];
+      if (!visibleIds.includes(id)) {
+        dispatch("positionableLeave", id);
+      }
+    }
+
+    // Enter events.
+    for (let i = 0; i < visibleIds.length; i++) {
+      const id = visibleIds[i];
+      if (!oldVisiblePositionables.includes(id)) {
+        dispatch("positionableEnter", id);
+      }
+    }
+    oldVisiblePositionables = visibleIds;
+
+    return visible;
   });
 
   onMount(() => {
