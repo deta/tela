@@ -796,19 +796,23 @@
       // TODO: Dispatch zoom reset
       debounce("end_zoom", 100, mode.idle);
     } else if ($settings.CAN_PAN) {
-      if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return;
+      if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return; // TODO: Origin of safari bug?
       e.preventDefault();
       e.stopPropagation();
       mode.pan(); // TODO: only if not already?
 
       let deltaX =
         $settings.PAN_DIRECTION === "xy" || $settings.PAN_DIRECTION === "x" ? e.deltaX / $zoom : 0;
-      const deltaY =
+      let deltaY =
         $settings.PAN_DIRECTION === "xy" || $settings.PAN_DIRECTION === "y" ? e.deltaY / $zoom : 0;
 
       // if (!hasClassOrParentWithClass(e.target as HTMLElement, "draggable")) {
       if ($settings.PAN_DIRECTION === "x") {
         deltaX += e.deltaY / $zoom;
+        // mode.pan();
+      }
+      else if ($settings.PAN_DIRECTION === "y") {
+        deltaY += e.deltaX / $zoom;
         // mode.pan();
       }
       // } else {
