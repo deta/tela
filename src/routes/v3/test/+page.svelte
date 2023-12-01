@@ -20,7 +20,7 @@
 
   let stackingOrder = writable<string[]>([]);
   let cards: Writable<Writable<IPositionable<"key">>[]> = writable(
-    Array.from({ length: 6000 }, (_, i) => {
+    Array.from({ length: 5000 }, (_, i) => {
       let x = {
         key: crypto.randomUUID() + i,
         x: Math.random() * 12000,
@@ -29,7 +29,8 @@
         // y: 250,
         // y: 20,
         width: 240,
-        height: 100
+        height: 100,
+        hoisted: false
       };
       let p = writable(x);
       // return {
@@ -66,7 +67,11 @@
 
   const settings = createSettings({
     // PAN_DIRECTION: "x",
-    DEV: false
+    DEV: true,
+    SNAP_TO_GRID: true,
+    GRID_SIZE: 30,
+    CHUNK_WIDTH: 300,
+    CHUNK_HEIGHT: 300,
   });
   const board = createBoard(settings, stackingOrder, {}, "idle", {
     idle: { select: "select", pan: "pan" },
@@ -82,6 +87,17 @@
     return v;
   })
 
+  function onDelete(e: any) {
+    const key = e.detail;
+    cards.update(_cards => {
+        const index = _cards.findIndex(e => get(e).key === key)
+        if (index !== -1) {
+          _cards.splice(index, 1)
+        }
+        return _cards
+      })
+  }
+
   // let lazyCard = () => import("./Card.svelte").then((m) => m.default);
 </script>
 
@@ -96,6 +112,8 @@
     on:metaSelectEnd={onMetaSelectEnd}
     on:draggableChanged={() => console.log("draggableChanged")}
     on:resizableChanged={() => console.log("resizableChanged")}
+    on:positionableLeave={(e) => console.log("positionableLeave", e.detail)}
+    on:positionableEnter={(e) => console.log("positionableEnter", e.detail)}
   >
     <svelte:fragment slot="selectRect">
       <div class="selectionRect" style={$selectionCss} />
@@ -107,7 +125,7 @@
 
     <LazyComponent this={() => import("./Card.svelte")}>
       <svelte:fragment slot="component" let:Component>
-        <Component card={positionable} />
+        <Component card={positionable} on:delete={onDelete}/>
       </svelte:fragment>
     </LazyComponent>
 

@@ -4,10 +4,12 @@
   import type { IPositionable } from "$lib/Positionable.svelte";
   import Resizable from "$lib/Resizable.svelte";
   import { hoistPositionable, unHoistPositionable } from "$lib/utils.js";
+  import { createEventDispatcher } from "svelte";
   import type { Writable } from "svelte/store";
 
   export let card: Writable<IPositionable<"key">>;
   let el: HTMLElement;
+  const dispatch = createEventDispatcher();
 
   function clickHoist() {
     if ($card.hoisted) {
@@ -16,6 +18,10 @@
     else {
       hoistPositionable($card.key, el);
     }
+  }
+
+  function onDelete() {
+    dispatch("delete", $card.key);
   }
 </script>
 
@@ -34,6 +40,7 @@
   <Draggable positionable={card}>
     card
     <button on:click={clickHoist}>{$card.hoisted ? 'unHoist' : 'hoist'}</button>
+    <button on:click={onDelete}>delete</button>
     <br>
     <br>
     <input type="range" min="0" max="2000" />
