@@ -1,112 +1,185 @@
-<script lang="ts">
-  import { createEventDispatcher, getContext } from "svelte";
-  import type { Vec2 } from "./types/Utils.type.js";
-  import type { Writable } from "svelte/store";
-  import type { TBoard, TBoardSettings } from "./types/Board.type.js";
-  import { hasClassOrParentWithClass, snapToGrid } from "./utils.js";
+<svelte:options immutable={true} />
 
-  export let pos: Vec2;
-  export let size: Vec2;
+<script lang="ts">
+  import { isTagsOrParentWithTags } from "./utils.js";
+  import type { Writable } from "svelte/store";
+  import type { IPositionable } from "./Positionable.svelte";
+  import { createEventDispatcher } from "svelte";
 
   const dispatch = createEventDispatcher();
 
-  const board = getContext<Writable<TBoard>>("board");
-  const settings = getContext<Writable<TBoardSettings>>("settings");
+  export let positionable: Writable<IPositionable<any>>;
 
-  let dragState = {
-    init: { x: 0, y: 0 },
-    curr: { x: 0, y: 0 },
-    offset: { x: 0, y: 0 }
-  };
+  let el: HTMLDivElement;
+  let dragging = false;
+  let holdTimer: number | null = null;
+  // const dragInit = { x: 0, y: 0 };
+  // const dragOffset = { x: 0, y: 0 };
 
-  // Utils
-  function posToViewportPos(x: number, y: number) {
-    return {
-      x: x - $board.viewPort.x,
-      y: y - $board.viewPort.y + window.scrollY
-    };
-  }
+  // TODO: ignore input, button, textarea, select, option, a, iframe
 
   // UI Handlers
   function onMouseDown(e: MouseEvent | TouchEvent) {
     const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
-    const { x: clientX, y: clientY } = posToViewportPos(
-      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
-      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY
-    );
+    const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
+    const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
 
-    if (hasClassOrParentWithClass(target as HTMLElement, "tela-ignore")) return;
-    e.stopPropagation();
-    document.body.classList.add("dragging");
-    // let cX = e.clientX;
-    // let cY = e.clientY;
-    // todo: handle touch
+    if (isTagsOrParentWithTags(target as HTMLElement, [
+      "INPUT",
+      "BUTTON",
+      "TEXTAREA",
+      "SELECT",
+      "OPTION",
+      "A",
+      "IFRAME"
+    ])) return;
 
-    const x = $settings.SNAP_TO_GRID ? snapToGrid(clientX, $settings.GRID_SIZE!) : clientX;
-    const y = $settings.SNAP_TO_GRID ? snapToGrid(clientY, $settings.GRID_SIZE!) : clientY;
+    // dragInit.x = clientX;
+    // dragInit.y = clientY;
 
-    dragState.init = { x, y };
-    dragState.curr = { x, y };
-
-    document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp, { once: true });
-    document.addEventListener("touchmove", onMouseMove);
     document.addEventListener("touchend", onMouseUp, { once: true });
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("touchmove", onMouseMove);
 
-    dispatch("dragStart", { pos });
+    holdTimer = setTimeout(() => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // TODO: Combine these events
+      el.dispatchEvent(new CustomEvent("draggable_onMouseDown", { bubbles: true, detail: { event: e, positionable, clientX, clientY } }));
+      el.dispatchEvent(new CustomEvent("draggable_start", { bubbles: true, detail: { event: e, positionable, clientX, clientY } }));
+      // TODO: check if event canceled, if not:
+      dragging = true;
+    }, 100);
   }
 
   function onMouseMove(e: MouseEvent | TouchEvent) {
-    const { x: clientX, y: clientY } = posToViewportPos(
-      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
-      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY
-    );
-
-    dragState.offset = {
-      x: (clientX - dragState.curr.x) / $board.zoom,
-      y: (clientY - dragState.curr.y) / $board.zoom
-    };
-
-    dragState.curr = { x: clientX, y: clientY };
-
-    // todo: optimize setting pos?
-
-    const newX = pos.x + dragState.offset.x;
-    const newY = pos.y + dragState.offset.y;
-
-    if ($settings.BOUNDS?.minX !== null && newX < $settings.BOUNDS!.minX) {
-      pos.x = $settings.BOUNDS!.minX;
-    } else if ($settings.BOUNDS?.maxX !== null && newX + size.x > $settings.BOUNDS!.maxX) {
-      pos.x = $settings.BOUNDS!.maxX - size.x;
-    } else {
-      pos.x += dragState.offset.x;
-    }
-
-    if ($settings.BOUNDS?.minY !== null && newY < $settings.BOUNDS!.minY) {
-      pos.y = $settings.BOUNDS!.minY;
-    } else if ($settings.BOUNDS?.maxY !== null && newY + size.y > $settings.BOUNDS!.maxY) {
-      pos.y = $settings.BOUNDS!.maxY - size.y;
-    } else {
-      pos.y += dragState.offset.y;
-    }
-
-    dispatch("dragMove", { pos, offset: dragState.offset });
+    // dragOffset.x += e.clientX - dragInit.x;
+    // dragOffset.y += e.clientY - dragInit.y;
+    // if (dragOffset.x >= 9 || dragOffset.y >= 9) {
+    //   if (holdTimer) clearTimeout(holdTimer);
+    //   holdTimer = null;
+    // }
+    if (!dragging) return;
+    const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
+    const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
+    const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
+    el.dispatchEvent(new CustomEvent("draggable_onMouseMove", { bubbles: true, detail: { event: e, positionable, clientX, clientY } }));
+    el.dispatchEvent(new CustomEvent("draggable_move", { bubbles: true, detail: { event: e, positionable, clientX, clientY } }));
   }
 
   function onMouseUp(e: MouseEvent | TouchEvent) {
-    document.body.classList.remove("dragging");
+    // dragOffset.x = 0;
+    // dragOffset.y = 0;
+    const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
+
+    if (holdTimer !== null) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+
+    if (!dragging) return;
+    const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
+    const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
+
+    el.dispatchEvent(new CustomEvent("draggable_onMouseUp", { bubbles: true, detail: { event: e, positionable, clientX, clientY } }));
+    el.dispatchEvent(new CustomEvent("draggable_end", { bubbles: true, detail: { event: e, positionable, clientX, clientY } }));
+
+    dragging = false;
     document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
     document.removeEventListener("touchmove", onMouseMove);
-    dispatch("dragEnd", { pos });
+    document.removeEventListener("touchend", onMouseUp);
   }
+
+  // function onMouseDown(e: MouseEvent | TouchEvent) {
+  //   const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
+  //   const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
+  //   const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
+
+  //   if (
+  //     isTagsOrParentWithTags(target as HTMLElement, [
+  //       "INPUT",
+  //       "BUTTON",
+  //       "TEXTAREA",
+  //       "SELECT",
+  //       "OPTION",
+  //       "A",
+  //       "IFRAME"
+  //     ])
+  //   )
+  //     return;
+
+  //   document.addEventListener("mouseup", onMouseUp, { once: true });
+  //   document.addEventListener("touchend", onMouseUp, { once: true });
+  //   document.addEventListener("mousemove", onMouseMove);
+  //   document.addEventListener("touchmove", onMouseMove);
+
+  //   e.preventDefault();
+  //   e.stopPropagation();
+
+  //   // TODO: Combine these events
+  //   el.dispatchEvent(
+  //     new CustomEvent("draggable_onMouseDown", {
+  //       bubbles: true,
+  //       detail: { event: e, positionable, clientX, clientY }
+  //     })
+  //   );
+  //   el.dispatchEvent(
+  //     new CustomEvent("draggable_start", {
+  //       bubbles: true,
+  //       detail: { event: e, positionable, clientX, clientY }
+  //     })
+  //   );
+  //   // TODO: check if event canceled, if not:
+  // }
+
+  // function onMouseMove(e: MouseEvent | TouchEvent) {
+  //   const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
+  //   const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
+  //   const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
+  //   el.dispatchEvent(
+  //     new CustomEvent("draggable_onMouseMove", {
+  //       bubbles: true,
+  //       detail: { event: e, positionable, clientX, clientY }
+  //     })
+  //   );
+  // }
+
+  // function onMouseUp(e: MouseEvent | TouchEvent) {
+  //   const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
+  //   const clientX = (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX;
+  //   const clientY = (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY;
+
+  //   el.dispatchEvent(
+  //     new CustomEvent("draggable_onMouseUp", {
+  //       bubbles: true,
+  //       detail: { event: e, positionable, clientX, clientY }
+  //     })
+  //   );
+  //   el.dispatchEvent(
+  //     new CustomEvent("draggable_end", {
+  //       bubbles: true,
+  //       detail: { event: e, positionable, clientX, clientY }
+  //     })
+  //   );
+
+  //   document.removeEventListener("mousemove", onMouseMove);
+  //   document.removeEventListener("mouseup", onMouseUp);
+  //   document.removeEventListener("touchmove", onMouseMove);
+  //   document.removeEventListener("touchend", onMouseUp);
+  // }
 </script>
 
-<svelte:element
-  this="div"
-  {...$$restProps}
+<div
   class="draggable {$$restProps.class || ''}"
-  on:mousedown={onMouseDown}
-  on:touchstart|nonpassive={onMouseDown}
+  on:mousedown|capture={onMouseDown}
+  on:touchstart={onMouseDown}
+  bind:this={el}
+  on:click
 >
   <slot />
-</svelte:element>
+</div>

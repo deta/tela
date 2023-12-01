@@ -7,22 +7,24 @@
   export let dotOpacity = 30;
   export let dotSize = 1;
 
-  const board = getContext<IBoard<any, any>>("board");
+  const board = getContext<IBoard>("board");
   const settings = getContext<Writable<IBoardSettings>>("settings");
-  const GRID_SIZE = $settings.GRID_SIZE;
 
   const state = board.state;
-  const viewport = $state.viewPort;
-  const viewOffset = $state.viewOffset;
-  const zoom = $state.zoom;
+  let viewX = $state.viewOffset.x;
+  let viewY = $state.viewOffset.y;
+  let zoom = $state.zoom;
 
-  $: transformCss = `width: ${$viewport.w / $zoom}px; height: ${
-    $viewport.h / $zoom
-  }px; transform: translate3d(-${dotSize}px, -${dotSize}px, 0) translate3d(${
-    $viewOffset.x - ($viewOffset.x % GRID_SIZE)
-  }px, ${$viewOffset.y - ($viewOffset.y % GRID_SIZE)}px, 0);`;
+  // $: transformCss = `transform: translate(${$board.viewOffset.x}px, ${$board.viewOffset.y}px);`;
+  $: transformCss = `width: ${100 / $zoom}%; height: ${
+    100 / $zoom
+  }%; transform: translate3d(-${dotSize}px, -${dotSize}px, 0) translate3d(${
+    $viewX - ($viewX % $settings.GRID_SIZE!)
+  }px, ${$viewY - ($viewY % $settings.GRID_SIZE!)}px, 0);`;
 
-  // $: svgShiftCss = `transform: translate3d(-${$viewX % GRID_SIZE}px, 0px, 0);`;
+  $: svgShiftCss = `transform: translate3d(-${
+    $viewX % $settings.GRID_SIZE!
+  }px, 0px, 0);`;
 </script>
 
 <div class="grid" style={transformCss}>
@@ -46,10 +48,8 @@
 <style>
   .grid {
     position: relative;
-    z-index: -1; /* we dont set it -1 intentionally so that elements not in the stacking order are not clickable -> TODO: maybe this is not wanted */
-    will-change: transform;
-    contain: strict;
-    pointer-events: none;
+    min-height: 100%;
+    z-index: -1; /* we dont set it -1 intentionally so that elements not in the stacking order are not clickable -> todo: maybe this is not wanted */
   }
   .grid > svg {
     position: absolute;
