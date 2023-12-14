@@ -1691,7 +1691,7 @@
         <ul class="dev-txt" style="list-style: none;">
           <!-- TODO: Dynamic version inject -->
           <span style="margin-bottom: 8px;"
-            ><i>Tela <small style="color: #b7b7c4;">v3.0.0</small></i></span
+            ><i>Tela <small style="color: #b7b7c4;">v3.1.0</small></i></span
           >
           <li><span>Mode:</span><span>{$mode}</span></li>
           <li><span>Zoom:</span><span>{$zoom}</span></li>
