@@ -125,37 +125,6 @@
       _stack.push(key);
       return _stack;
     });
-
-    // const l = get(stack).length;
-    // // console.time(`[StackingOrder-update :: n = ${l}]`); // todo: make debug only
-    // stack.update((_stack) => {
-    //   positionable.update((p) => {
-    //     const i = _stack.indexOf(p[keyField]);
-    //     _stack.push(p[keyField]);
-    //     if (i !== -1) _stack.splice(i, 1);
-
-    //     p.z = _stack.indexOf(p[keyField]); //l + 1;
-    //     return p;
-    //   });
-    //   positionables.forEach((_p) => {
-    //     _p.update((p) => {
-    //       p.z = _stack.indexOf(p[keyField]);
-    //       return p;
-    //     });
-    //   });
-    //   return _stack;
-    // });
-    // // stack.update((s) => {
-    // //   positionable.update((p) => {
-    // //     const i = s.indexOf(p.key);
-    // //     s.push(p.key);
-    // //     if (i !== -1) s.splice(i, 1);
-    // //     p.z = s.indexOf(p.key);//l + 1;
-    // //     return p;
-    // //   });
-    // //   return s;
-    // // });
-    // // console.timeEnd(`[StackingOrder-update :: n = ${l}]`);
   }
 </script>
 
@@ -1575,11 +1544,6 @@
           <li><span>Mode:</span><span>{$mode}</span></li>
           <li><span>Zoom:</span><span>{$zoom}</span></li>
           <li>
-            <!-- <span>Offset:</span><span
-              >{$viewOffset.x}, {$viewOffset.y} // {Math.floor($viewOffset.x / CHUNK_WIDTH)}, {Math.floor(
-                $viewOffset.y / CHUNK_HEIGHT
-              )}</span
-            > -->
             <span>Offset:</span><span
               >{$viewOffset.x}, {$viewOffset.y} // {$chunkOffset.x}, {$chunkOffset.y}</span
             >
@@ -1598,17 +1562,7 @@
               <small>({$hoistedPositionables.length} hoisted)</small></span
             >
           </li>
-          <!-- <li>
-            <span>Drag Start Delay ({$dragDelay}):</span><span
-              ><input type="range" bind:value={$dragDelay} min="1" max="3000" /></span
-            >
-          </li>
-          <li>
-            <span>Drag Abort Move ({$dragAbortMin}):</span><span
-              ><input type="range" bind:value={$dragAbortMin} min="1" max="200" /></span
-            >
-          </li> -->
-          <!-- NOTE: Major perf hit due to conditional slot. -->
+          <!-- NOTE: Major perf hit due to conditional slot -> No custom dev overlay for now -->
           <!-- TODO: Look into optimizing dev overlay perf -->
           <!-- <slot name="dev" /> -->
         </ul>
@@ -1624,10 +1578,8 @@
     {/if}
 
     {#if $settings.DEV}
-      <!-- TODO: This requires updating lib users to Svelte4 -->
+      <!-- TODO: Using iterator requires updating lib users to Svelte4 -->
       <!-- TODO: Perf use iterator is much faster: https://github.com/sveltejs/svelte/issues/7425#issuecomment-1461021936 -->
-      <!-- Depends on implementation using map -->
-      <!-- {#each $visibleChunks as [chunkId, _] (chunkId)} -->
       {#each $visibleChunks as [chunkId, _] (chunkId)}
         {@const index = chunkId.split(":")}
         {@const chunkX = parseInt(index[0])}
@@ -1639,6 +1591,15 @@
     {#each $visiblePositionables as positionable (get(positionable)[POSITIONABLE_KEY])}
       <slot {positionable} />
     {/each}
+
+    <!-- Note: Iterating the chunks instead of visible positionables directly solves card reloading
+        TODO: Figure out a way to use this without missing state when deleting stuff from positionables store
+    -->
+    <!-- {#each [...get(visibleChunks)] as [id, content] (id)}
+      {#each get(content) as positionable (get(positionable)[POSITIONABLE_KEY])}
+          <slot {positionable} />
+        {/each}
+    {/each} -->
 
     <slot name="raw" />
   </div>
