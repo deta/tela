@@ -11,7 +11,7 @@
 
 <script lang="ts">
   import { getContext, onDestroy, onMount } from "svelte";
-  import type { Writable } from "svelte/store";
+  import { derived, type Writable } from "svelte/store";
   import type { IBoard, IBoardSettings } from "./types/Board.type.js";
   import { scale } from "svelte/transition";
   import { cubicInOut } from "svelte/easing";
@@ -35,7 +35,13 @@
 
   let dragging = false;
 
-  $: transformCss = `left: ${$positionable.x}px; top: ${$positionable.y}px; width: ${$positionable.width}px; height: ${$positionable.height}px; z-index: ${$positionable.z !== undefined ? $positionable.z : $stackingOrder.indexOf($positionable[POSITIONABLE_KEY])}; contain-intrinsic-size: ${$positionable.width}px ${$positionable.height}px; ${contained ? 'contain: strict;' : ''}`;
+  const transformCss = derived(positionable, (p) => {
+    return `left: ${p.x}px; top: ${p.y}px; width: ${p.width}px; height: ${p.height}px; contain-intrinsic-size: ${p.width}px ${p.height}px; z-index: ${$positionable.z !== undefined ? $positionable.z : $stackingOrder.indexOf($positionable[POSITIONABLE_KEY])};`;
+  });
+  // const transformCss = derived(positionable, (p) => {
+  //   return `transform: translate(${p.x}px, ${p.y}px); width: ${p.width}px; height: ${p.height}px; contain-intrinsic-size: ${p.width}px ${p.height}px; z-index: ${$positionable.z !== undefined ? $positionable.z : $stackingOrder.indexOf($positionable[POSITIONABLE_KEY])};`;
+  // });
+  // $: transformCss = `left: ${$positionable.x}px; top: ${$positionable.y}px; width: ${$positionable.width}px; height: ${$positionable.height}px; z-index: ${$positionable.z !== undefined ? $positionable.z : $stackingOrder.indexOf($positionable[POSITIONABLE_KEY])}; contain-intrinsic-size: ${$positionable.width}px ${$positionable.height}px; ${contained ? 'contain: strict;' : ''}`;
   // $: transformCss = `left: ${$positionable.x - (Math.floor($positionable.x / CHUNK_WIDTH) * CHUNK_WIDTH)}px; top: ${$positionable.y  - (Math.floor($positionable.y / CHUNK_HEIGHT) * CHUNK_HEIGHT)}px; width: ${$positionable.width}px; height: ${$positionable.height}px; z-index: ${$positionable.key !== undefined ? $positionable.key : 0};`; // ${!visible ? 'display: none;' : ''} ${!visible ? 'content-visibility: hidden;' : ''}
   // $: transformCss = `left: 0; top: 0;transform: translate3d(${$positionable.x}px, ${$positionable.y}px, 0) scale(${$state.zoom}); width: ${$positionable.width}px; height: ${$positionable.height}px; z-index: ${$positionable.key !== undefined ? $positionable.key : 0};`;
 
@@ -53,18 +59,18 @@
 </script>
 
 <!-- TODO: For Readonly mode, custom immutable version of this cmp -->
-<!-- <svelte:options immutable={true} /> -->
+<svelte:options immutable={true} />
 
 <!-- transition:scale={{ duration: 100, opacity: 0, start: 0.8, easing: cubicInOut }} -->
 <div
   data-key={$positionable[POSITIONABLE_KEY]}
   {...$$restProps}
-  style="{transformCss} {$$restProps.style || ''}"
+  style="{$transformCss} {contained ? 'contain: strict;' : ''} {$$restProps.style || ''}"
   class="positionable {$$restProps.class || ''}"
   class:selected={$selection.has($positionable[POSITIONABLE_KEY])}
   class:hoisted={$positionable.hoisted}
   class:dragging
-  transition:scale={{ duration: 100, opacity: 0, start: 0.8, easing: cubicInOut }}
+  transition:scale={{ duration: 70, opacity: 0, start: 0.8, easing: cubicInOut }}
   bind:this={el}
 >
   <slot />
