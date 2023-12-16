@@ -302,8 +302,10 @@
   const hoisted = writable<Writable<IPositionable<any>>[]>([]);
   const chunks = writable(new Map<string, Writable<Writable<IPositionable<any>>[]>>());
 
+  const vChunkOffset = writable({ x: 0, y: 0 });
+
   const visibleChunks = derived(
-    [chunks, chunkOffset, viewPort, zoom],
+    [chunks, vChunkOffset, viewPort, zoom],
     ([_chunks, _chunkOffset, _viewPort, _zoom]) => {
       return fastFilter(
         ([id, _]) => {
@@ -329,7 +331,8 @@
   );
 
   let oldVisiblePositionableIDs: string[] = [];
-  const visiblePositionables = derived([positionables, hoisted, visibleChunks, viewOffset, viewPort, zoom], ([_positionables, _hoisted, _visibleChunks, _viewOffset, _viewPort, _zoom]) => {
+  // Note: removed chunkoffset dependency
+  const visiblePositionables = derived([positionables, hoisted, visibleChunks, viewPort, zoom], ([_positionables, _hoisted, _visibleChunks, _viewPort, _zoom]) => {
     const visible = [
       ..._hoisted,
       ...fastFilter(
@@ -340,12 +343,14 @@
             p.y,
             p.width,
             p.height,
-            _viewOffset.x,
-            _viewOffset.y,
+            //_viewOffset.x,
+            //_viewOffset.y,
+            $viewOffset.x,
+            $viewOffset.y,
             _viewPort,
             _zoom,
-            0,
-            0
+            CHUNK_WIDTH,
+            CHUNK_HEIGHT
           );
         },
         [..._visibleChunks.flatMap(e => get(e[1]))]
@@ -1078,6 +1083,7 @@
   let targetOffsetX = 0;
   let targetOffsetY = 0;
   let animationFrame: number | null = null;
+  let offsetTimeout: number | null = null;
   function onWheel(e: WheelEvent) {
     // TODO: bypasses from setting
     // TODO: ZOOM
@@ -1170,6 +1176,17 @@
       targetOffsetY += e.deltaY;
       lastViewX = boundX;
       lastViewY = boundY;
+
+      if ((lastViewX / CHUNK_WIDTH !== targetOffsetX / CHUNK_WIDTH) || (lastViewY / CHUNK_HEIGHT !== targetOffsetY / CHUNK_HEIGHT)) {
+        if (offsetTimeout !== null) clearTimeout(offsetTimeout);
+        offsetTimeout = setTimeout(() => {
+          vChunkOffset.update(v => {
+            v.x = targetOffsetX / CHUNK_WIDTH;
+            v.y = targetOffsetY / CHUNK_HEIGHT;
+            return v;
+          })
+        })
+      }
 
       if (animationFrame === null) {
         animationFrame = requestAnimationFrame(() => {
