@@ -86,6 +86,8 @@
   );
 </script>
 
+<svelte:options immutable={true} />
+
 <li style="display: flex; justify-content: end;">
   <DebugPanel name="FPS" fg="#0ff" bg="#002" value={vFPS} />
   <!-- <DebugPanel name="MS" fg="#0f0" bg="#020" value={vMS} /> -->
