@@ -1084,6 +1084,15 @@
   let targetOffsetY = 0;
   let animationFrame: number | null = null;
   let offsetTimeout: number | null = null;
+  let microTaskKey = {};
+  // TODO: Rename this is a macrotask AcTuaLly
+  function queueMicroTask(cbk: any) {
+    microTaskKey = {};
+    const currentKey = microTaskKey;
+    setTimeout(() => {
+      if (microTaskKey === currentKey) cbk();
+    })
+  }
   function onWheel(e: WheelEvent) {
     // TODO: bypasses from setting
     // TODO: ZOOM
@@ -1178,8 +1187,7 @@
       lastViewY = boundY;
 
       if ((lastViewX / CHUNK_WIDTH !== targetOffsetX / CHUNK_WIDTH) || (lastViewY / CHUNK_HEIGHT !== targetOffsetY / CHUNK_HEIGHT)) {
-        if (offsetTimeout !== null) clearTimeout(offsetTimeout);
-        offsetTimeout = setTimeout(() => {
+        queueMicroTask(() => {
           vChunkOffset.update(v => {
             v.x = targetOffsetX / CHUNK_WIDTH;
             v.y = targetOffsetY / CHUNK_HEIGHT;
@@ -1199,6 +1207,18 @@
           animationFrame = null;
         });
       }
+      // if (animationFrame !== null) {
+      //   cancelAnimationFrame(animationFrame);
+      // }
+      // animationFrame = requestAnimationFrame(() => {
+      //     viewOffset.update(v => {
+      //       v.x = targetOffsetX;
+      //       v.y = targetOffsetY;
+      //       return v;
+      //     }, { duration: 0, hard: true })
+      //     // viewOffset.set({ x: targetOffsetX, y: targetOffsetY }, { duration: 0 });
+      //     animationFrame = null;
+      //   });
 
       // TODO: Done event --> use native pan method
 
@@ -1750,6 +1770,7 @@
           <li><span>N-Cards:</span><span>{$positionables.length}</span></li>
           <li><span>N-Chunks:</span><span>{$chunks.size}</span></li>
           <li><span>Hot Chunks:</span><span>{$visibleChunks.length}</span></li>
+          <li><span>Target Offset:</span><span>{targetOffsetX} // {targetOffsetY}</span></li>
           <li>
             <span>Hot Cards:</span><span
               >{$visiblePositionables.length}
