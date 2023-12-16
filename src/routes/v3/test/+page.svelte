@@ -20,11 +20,11 @@
 
   let stackingOrder = writable<string[]>([]);
   let cards: Writable<Writable<IPositionable<"key">>[]> = writable(
-    Array.from({ length: 5000 }, (_, i) => {
+    Array.from({ length: 8000 }, (_, i) => {
       let x = {
         key: crypto.randomUUID() + i,
-        x: Math.random() * 12000,
-        y: Math.random() * 12000,
+        x: Math.random() * 22000,
+        y: Math.random() * 22000,
         // x: i * 510,
         // y: 250,
         // y: 20,
@@ -101,6 +101,12 @@
   // let lazyCard = () => import("./Card.svelte").then((m) => m.default);
 </script>
 
+<!--
+  on:draggableChanged={() => console.log("draggableChanged")}
+    on:resizableChanged={() => console.log("resizableChanged")}
+    on:positionableLeave={(e) => console.log("positionableLeave", e.detail)}
+    on:positionableEnter={(e) => console.log("positionableEnter", e.detail)}
+-->
 <main>
   <Board
     {board}
@@ -110,10 +116,7 @@
     let:positionable
     on:metaSelectChange={() => {}}
     on:metaSelectEnd={onMetaSelectEnd}
-    on:draggableChanged={() => console.log("draggableChanged")}
-    on:resizableChanged={() => console.log("resizableChanged")}
-    on:positionableLeave={(e) => console.log("positionableLeave", e.detail)}
-    on:positionableEnter={(e) => console.log("positionableEnter", e.detail)}
+
   >
     <svelte:fragment slot="selectRect">
       <div class="selectionRect" style={$selectionCss} />
@@ -233,8 +236,12 @@
     width: 100%;
     height: 100vh;
   }
+  :global(*) {
+    user-select: none;
+  }
   :global(.positionable) {
     background: rgb(98, 95, 112);
+    background: var(--bg);
     border: 1px solid rgba(52, 34, 132, 0.793);
   }
   :global(.draggable) {

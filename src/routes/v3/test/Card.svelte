@@ -3,7 +3,7 @@
   import Positionable from "$lib/Positionable.svelte";
   import type { IPositionable } from "$lib/Positionable.svelte";
   import Resizable from "$lib/Resizable.svelte";
-  import { hoistPositionable, unHoistPositionable } from "$lib/utils.js";
+  import { hoistPositionable, randomCssColor, unHoistPositionable } from "$lib/utils.js";
   import { createEventDispatcher } from "svelte";
   import type { Writable } from "svelte/store";
 
@@ -25,18 +25,18 @@
   }
 </script>
 
-<!-- <svelte:options immutable={true} /> -->
+<svelte:options immutable={true} />
 
-<Positionable positionable={card} bind:el>
+<Positionable positionable={card} bind:el style="--bg: {randomCssColor()};">
   <!-- TODO: Switch to mouse logic only -->
-  <Resizable positionable={card} direction="top"/>
+  <!-- <Resizable positionable={card} direction="top"/>
   <Resizable positionable={card} direction="right" />
   <Resizable positionable={card} direction="bottom" />
   <Resizable positionable={card} direction="left" />
   <Resizable positionable={card} direction="top-right" />
   <Resizable positionable={card} direction="top-left" />
   <Resizable positionable={card} direction="bottom-right" />
-  <Resizable positionable={card} direction="bottom-left" />
+  <Resizable positionable={card} direction="bottom-left" /> -->
   <Draggable positionable={card}>
     card
     <button on:click={clickHoist}>{$card.hoisted ? 'unHoist' : 'hoist'}</button>
