@@ -198,11 +198,19 @@
   const selectionRect = $state.selectionRect;
   const stackingOrder = $state.stackingOrder;
 
-  $: transformCss = `transform-origin: top left; transform: ${
-    $zoom !== 1 ? `scale(${$zoom * 100}%)` : ""
-  } translate3d(${-$viewOffset.x}px, ${-$viewOffset.y}px, 0); ${
+  const transformCss = derived([viewOffset, zoom], ([_offset, _zoom]) => {
+    return `${
     $mode === "pan" ? "will-change: transform;" : ""
-  }`;
+  }; transform: ${
+    $zoom !== 1 ? `scale(${$zoom * 100}%)` : ""
+  } translate(${-_offset.x}px, ${-_offset.y}px);`;
+  });
+
+  // $: transformCss = `transform-origin: top left; transform: ${
+  //   $zoom !== 1 ? `scale(${$zoom * 100}%)` : ""
+  // } translate3d(${-$viewOffset.x}px, ${-$viewOffset.y}px, 0); ${
+  //   $mode === "pan" ? "will-change: transform;" : ""
+  // }`;
 
   board.state.update((v) => {
     v.mode = fsm("idle", {
@@ -1067,6 +1075,9 @@
   // UI Handlers
   let lastViewX = 0;
   let lastViewY = 0;
+  let targetOffsetX = 0;
+  let targetOffsetY = 0;
+  let animationFrame: number | null = null;
   function onWheel(e: WheelEvent) {
     // TODO: bypasses from setting
     // TODO: ZOOM
@@ -1149,14 +1160,28 @@
         reachedBounds = true;
       }
 
-      if ($settings.BOUNDS.limit === "soft") {
-        viewOffset.set({ x: boundX, y: boundY }, reachedBounds ? { soft: 0.07 } : { hard: true });
-      } else {
-        viewOffset.set({ x: boundX, y: boundY }, { duration: 0 });
-      }
+      // if ($settings.BOUNDS.limit === "soft") {
+      //   viewOffset.set({ x: boundX, y: boundY }, reachedBounds ? { soft: 0.07 } : { hard: true });
+      // } else {
+      //   viewOffset.set({ x: boundX, y: boundY }, { duration: 0 });
+      // }
 
+      targetOffsetX += e.deltaX;
+      targetOffsetY += e.deltaY;
       lastViewX = boundX;
       lastViewY = boundY;
+
+      if (animationFrame === null) {
+        animationFrame = requestAnimationFrame(() => {
+          viewOffset.update(v => {
+            v.x = targetOffsetX;
+            v.y = targetOffsetY;
+            return v;
+          }, { duration: 0, hard: true })
+          // viewOffset.set({ x: targetOffsetX, y: targetOffsetY }, { duration: 0 });
+          animationFrame = null;
+        });
+      }
 
       // TODO: Done event --> use native pan method
 
@@ -1724,7 +1749,7 @@
     </ul>
   {/if}
 
-  <div class="tela-board mode-{$mode}" style={transformCss}>
+  <div class="tela-board mode-{$mode}" style={$transformCss}>
     {#if $mode === "select" || $mode === "modSelect"}
       <slot name="selectRect" />
     {/if}
@@ -1772,6 +1797,7 @@
   .tela-board {
     position: absolute;
     backface-visibility: hidden;
+    transform-origin: top left;
   }
   .tela-container > .dev {
     margin: 0;
