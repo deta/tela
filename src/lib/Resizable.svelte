@@ -85,7 +85,7 @@
   class="resizable {direction} {$$restProps.class || ''}"
   class:resizing
   on:mousedown={onMouseDown}
-  on:touchstart={onMouseDown}
+  on:touchstart|passive={onMouseDown}
   bind:this={el}
 >
   <slot />

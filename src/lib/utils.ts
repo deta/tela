@@ -12,6 +12,17 @@ export function debounce(id: string, ms: number, callback: () => void) {
 }
 
 export const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
+// TODO: Look into needing this?
+export function lerp2(minX, maxX, minY, maxY, clampFlag) {
+  var slope = (maxY - minY) / (maxX - minX);
+  return clampFlag
+    ? function (x) {
+        return ((x < minX ? minX : x > maxX ? maxX : x) - minX) * slope + minY;
+      }
+    : function (x) {
+        return (x - minX) * slope + minY;
+      };
+}
 export const clamp = (a: number, min = 0, max = 1) => Math.min(max, Math.max(min, a));
 export const invlerp = (x: number, y: number, a: number) => clamp((a - x) / (y - x));
 export const map = (x1: number, y1: number, x2: number, y2: number, a: number) =>

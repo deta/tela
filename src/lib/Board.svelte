@@ -1,3 +1,6 @@
+<!-- <svelte:window on:keydown={onKeyDown} /> -->
+<svelte:options immutable={true} />
+
 <script context="module" lang="ts">
   // TODO: REMOVE
   // export const dragDelay = writable(180);
@@ -130,29 +133,22 @@
 </script>
 
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, onMount, setContext, tick } from "svelte";
+  import { createEventDispatcher, onMount, setContext } from "svelte";
   import { derived, get, writable, type Writable } from "svelte/store";
-  import type { IBoard, IBoardSettings, IBoardState } from "./types/Board.type.js";
-  import type { DeepPartial, Vec2 } from "./types/Utils.type.js";
+  import {
+    lerp,
+    type DeepPartial,
+    type IBoard,
+    type IBoardSettings,
+    type IBoardState,
+    type IPositionable,
+    map
+  } from "./index.js";
+  // import DebugPanels from "./DebugPanels.svelte";
+  import type { BaseState } from "./state-machine/fsm.js";
   import { spring, tweened } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
-  import DebugPanels from "./DebugPanels.svelte";
-  import type { BaseState } from "./state-machine/fsm.js";
-  import fsm from "./state-machine/fsm.js";
-  import {
-    clamp,
-    debounce,
-    fastFilter,
-    hasClassOrParentWithClass,
-    isInsidePositionable,
-    isInsideViewport,
-    posToAbsolute,
-    rectsIntersect,
-    snapToGrid
-  } from "./utils.js";
-  import type { IPositionable } from "./Positionable.svelte";
-  import type { TResizeDirection } from "./Resizable.svelte";
-  import ChunkOverlay from "./ChunkOverlay.svelte";
+  import { fastFilter, isInsideViewport } from "./utils.js";
 
   const dispatch = createEventDispatcher();
   export let containerEl: HTMLElement;
@@ -169,859 +165,27 @@
   const POSITIONABLE_KEY = $settings.POSITIONABLE_KEY;
 
   const state = board.state;
-  const viewOffset = $state.viewOffset; // TODO: Can we use custom stores with requestAnimationFrame for scrolling?
-
-  const chunkOffset = writable({ x: 0, y: 0 });
-  onDestroy(
-    viewOffset.subscribe((_offset) => {
-      const chunkX = Math.floor(_offset.x / CHUNK_WIDTH);
-      const chunkY = Math.floor(_offset.y / CHUNK_HEIGHT);
-      if ($chunkOffset.x !== chunkX) {
-        chunkOffset.update((v) => {
-          v.x = chunkX;
-          return v;
-        });
-      }
-      if ($chunkOffset.y !== chunkY) {
-        chunkOffset.update((v) => {
-          v.y = chunkY;
-          return v;
-        });
-      }
-    })
-  );
-
   const viewPort = $state.viewPort;
   const zoom = $state.zoom;
-  $: mode = $state.mode;
-  const selection = $state.selection;
-  const selectionRect = $state.selectionRect;
-  const stackingOrder = $state.stackingOrder;
+  $zoom = 0.5;
+  const mode = writable("idle");
 
-  const transformCss = derived([viewOffset, zoom], ([_offset, _zoom]) => {
-    return `${
-    $mode === "pan" ? "will-change: transform;" : ""
-  }; transform: ${
-    $zoom !== 1 ? `scale(${$zoom * 100}%)` : ""
-  } translate(${-_offset.x}px, ${-_offset.y}px);`;
-  });
+  // Actual viewoffset used to transform board
+  const viewOffset = writable({ x: 0, y: 0 });
+  let viewOffsetTargetX = $viewOffset.x;
+  let viewOffsetTargetY = $viewOffset.y;
+  let viewX = $viewOffset.x;
+  let viewY = $viewOffset.y;
+  // ChunkOffset gets updated when viewOffset changes to new chunk
+  const chunkOffset = writable({ x: 0, y: 0 });
 
-  // $: transformCss = `transform-origin: top left; transform: ${
-  //   $zoom !== 1 ? `scale(${$zoom * 100}%)` : ""
-  // } translate3d(${-$viewOffset.x}px, ${-$viewOffset.y}px, 0); ${
-  //   $mode === "pan" ? "will-change: transform;" : ""
-  // }`;
-
-  board.state.update((v) => {
-    v.mode = fsm("idle", {
-      idle: {
-        pan: "pan",
-        autoPan: "autoPan",
-        zoom: "zoom",
-        autoZoom: "autoZoom",
-        select: "select",
-        modSelect: "modSelect",
-
-        dragging: "dragging",
-        resizing: "resizing",
-
-        _enter() {
-          tick().then(() => containerEl.addEventListener("mousedown", onMouseDown_idle));
-          tick().then(() =>
-            containerEl.addEventListener("mousedown", onMouseDown_idleCapture, { capture: true })
-          );
-        },
-        _exit() {
-          //tick().then(() => containerEl.removeEventListener("mousedown", onMouseDown_idle));
-          containerEl && containerEl.removeEventListener("mousedown", onMouseDown_idle)
-          //tick().then(() => containerEl.removeEventListener("mousedown", onMouseDown_idleCapture));
-          containerEl && containerEl.removeEventListener("mousedown", onMouseDown_idleCapture)
-        }
-      },
-      pan: {
-        idle: "idle",
-        _exit() {
-          dispatch("panEnd", {});
-        }
-      },
-      autoPan: {
-        idle: "idle"
-      },
-      zoom: {
-        idle: "idle"
-      },
-      autoZoom: {
-        idle: "idle"
-      },
-      select: {
-        idle: "idle",
-
-        _enter() {
-          document.addEventListener("mousemove", onMouseMove_select);
-          document.addEventListener("mouseup", mode.idle);
-        },
-        _exit() {
-          $state.selectionRect.set(null);
-          select_init.x = 0;
-          select_init.y = 0;
-          document.removeEventListener("mousemove", onMouseMove_select);
-          document.removeEventListener("mouseup", mode.idle);
-        }
-      },
-      modSelect: {
-        idle: "idle",
-
-        _enter() {
-          document.addEventListener("mousemove", onMouseMove_modSelect);
-          document.addEventListener("mouseup", onMouseUp_modSelect);
-        },
-        _exit() {
-          $state.selectionRect.set(null);
-          select_init.x = 0;
-          select_init.y = 0;
-          document.removeEventListener("mousemove", onMouseMove_modSelect);
-          document.removeEventListener("mouseup", onMouseUp_modSelect);
-        }
-      },
-
-      dragging: {
-        idle: "idle"
-      },
-      resizing: {
-        idle: "idle"
-      }
-      // TODO: add custom actions
-    });
-    return v;
-  });
+  // const transformCss = derived([viewOffset, zoom], ([_offset, _zoom]) => {
+  //   return `${$mode === "pan" ? "will-change: transform;" : ""}; transform: ${
+  //     $zoom !== 1 ? `scale(${$zoom * 100}%)` : ""
+  //   } translate3d(${-_offset.x}px, ${-_offset.y}px, 0px);`;
+  // });
 
   let resizeObserver: ResizeObserver;
-  const select_init = { x: 0, y: 0 };
-
-  // Hoisted positionables will live outside the chunking / culling -> Always be loaded
-  const hoisted = writable<Writable<IPositionable<any>>[]>([]);
-  const chunks = writable(new Map<string, Writable<Writable<IPositionable<any>>[]>>());
-
-  const vChunkOffset = writable({ x: 0, y: 0 });
-
-  const visibleChunks = derived(
-    [chunks, vChunkOffset, viewPort, zoom],
-    ([_chunks, _chunkOffset, _viewPort, _zoom]) => {
-      return fastFilter(
-        ([id, _]) => {
-          const chunkX = parseInt(id.split(":")[0]);
-          const chunkY = parseInt(id.split(":")[1]);
-          return isInsideViewport(
-            chunkX * CHUNK_WIDTH,
-            chunkY * CHUNK_HEIGHT,
-            CHUNK_WIDTH,
-            CHUNK_HEIGHT,
-            _chunkOffset.x * CHUNK_WIDTH,
-            _chunkOffset.y * CHUNK_HEIGHT,
-            _viewPort,
-            _zoom,
-            CHUNK_WIDTH,
-            CHUNK_HEIGHT
-          );
-        },
-        [..._chunks.entries()]
-      );
-    },
-    []
-  );
-
-  let oldVisiblePositionableIDs: string[] = [];
-  // Note: removed chunkoffset dependency
-  const visiblePositionables = derived([positionables, hoisted, visibleChunks, viewPort, zoom], ([_positionables, _hoisted, _visibleChunks, _viewPort, _zoom]) => {
-    const visible = [
-      ..._hoisted,
-      ...fastFilter(
-        (positionable) => {
-          const p = get(positionable);
-          return isInsideViewport(
-            p.x,
-            p.y,
-            p.width,
-            p.height,
-            //_viewOffset.x,
-            //_viewOffset.y,
-            $viewOffset.x,
-            $viewOffset.y,
-            _viewPort,
-            _zoom,
-            CHUNK_WIDTH,
-            CHUNK_HEIGHT
-          );
-        },
-        [..._visibleChunks.flatMap(e => get(e[1]))]
-      )
-    ];
-
-    const visibleIds = visible.map((e) => get(e)[POSITIONABLE_KEY]);
-    //Leave events.
-      for (let i = 0; i < oldVisiblePositionableIDs.length; i++) {
-        const id = oldVisiblePositionableIDs[i];
-        if (!visibleIds.includes(id)) {
-          dispatch("positionableLeave", id);
-        }
-      }
-
-      // Enter events.
-      for (let i = 0; i < visibleIds.length; i++) {
-        const id = visibleIds[i];
-        if (!oldVisiblePositionableIDs.includes(id)) {
-          dispatch("positionableEnter", id);
-        }
-      }
-      oldVisiblePositionableIDs = visibleIds;
-
-      return visible;
-  });
-
-  // UTILS
-  function findChunkContaining(positionable: Writable<IPositionable<any>>): [string, Writable<Writable<IPositionable<any>>[]>] | null {
-    for (const chunk of get(chunks).entries()) {
-      const [chunkId, chunkContents] = chunk;
-      if (get(chunkContents).includes(positionable)) {
-        return chunk;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Removes all positionables that are no longer in the positionables store.
-   */
-  function updateExisting() {
-    hoisted.update(_hoisted => {
-      _hoisted.forEach((_positionable, i) => {
-        const p = get(_positionable);
-        if (!get(positionables).includes(_positionable) || p.hoisted !== true) {
-          _hoisted.splice(i, 1);
-        }
-      })
-      return _hoisted;
-    });
-
-    for (const chunk of get(chunks).entries()) {
-      const [chunkId, chunkContents] = chunk;
-      let empty = false;
-      chunkContents.update(_contents => {
-        _contents.forEach((_positionable, i) => {
-          const p = get(_positionable);
-          const pChunkId = `${Math.floor(p.x / CHUNK_WIDTH)}:${Math.floor(p.y / CHUNK_HEIGHT)}`;
-          if (!get(positionables).includes(_positionable) || pChunkId !== chunkId || p.hoisted === true) {
-            _contents.splice(i, 1);
-            if (_contents.length <= 0) empty = true;
-          }
-        });
-        // TODO: test, check all positions matching chunk it is inside?
-        return _contents;
-      })
-      if (empty) {
-        chunks.update(_chunks => {
-          _chunks.delete(chunkId);
-          return _chunks;
-        })
-      }
-    }
-  }
-
-  /**
-   * Updates the chunk / hoisted map from the current positionables array.
-   */
-  function updateFromPositionables() {
-    chunks.update(_chunks => {
-      const _positionables = get(positionables);
-      for (let i = 0; i < _positionables.length; i++) {
-        const p = _positionables[i];
-        const _p = get(p);
-        const pChunkId = `${Math.floor(_p.x / CHUNK_WIDTH)}:${Math.floor(_p.y / CHUNK_HEIGHT)}`;
-
-        // TODO: Hoised
-        if (_p.hoisted === true) {
-          hoisted.update(_hoisted => {
-            if (!_hoisted.includes(p)) {
-              _hoisted.push(p);
-            }
-            return _hoisted;
-          })
-        }
-        else {
-          if (!_chunks.has(pChunkId)) {
-            _chunks.set(pChunkId, writable<Writable<IPositionable<any>>[]>([p]));
-          }
-          else {
-            _chunks.get(pChunkId)!.update(_chunk => {
-              if (!_chunk.includes(p)) {
-                _chunk.push(p);
-              }
-              return _chunk;
-            });
-          }
-        }
-      }
-
-      return _chunks;
-    });
-  }
-
-  function updatePositionable(positionable: Writable<IPositionable<any>>) {
-    const chunk = findChunkContaining(positionable);
-    if (chunk === null) return; // todo: hoisted
-    const [chunkId, chunkContents] = chunk;
-
-    let empty = false;
-    chunkContents.update(_contents => {
-      _contents.splice(_contents.indexOf(positionable), 1);
-      if (_contents.length <= 0) empty = true;
-      return _contents;
-    })
-    if (empty) {
-      chunks.update(_chunks => {
-        _chunks.delete(chunkId);
-        return _chunks;
-      })
-    }
-
-    chunks.update((_chunks) => {
-      const p = positionable;
-      const _p = get(p);
-      const pChunkId = `${Math.floor(_p.x / CHUNK_WIDTH)}:${Math.floor(_p.y / CHUNK_HEIGHT)}`;
-
-      // TODO: Hoised
-      if (_p.hoisted === true) {
-        updateExisting();
-        hoisted.update((_hoisted) => {
-          if (!_hoisted.includes(p)) {
-            _hoisted.push(p);
-          }
-          return _hoisted;
-        });
-      } else {
-        if (!_chunks.has(pChunkId)) {
-          _chunks.set(pChunkId, writable<Writable<IPositionable<any>>[]>([p]));
-        } else {
-          _chunks.get(pChunkId)!.update((_chunk) => {
-            if (!_chunk.includes(p)) {
-              _chunk.push(p);
-            }
-            return _chunk;
-          });
-        }
-      }
-
-      return _chunks;
-    });
-
-    //updateExisting();
-    //updateFromPositionables();
-  }
-
-  function reloadChunks() {
-    updateExisting();
-    updateFromPositionables();
-  }
-
-  function hoistPositionable(positionable: Writable<IPositionable<any>>) {
-    const chunk = findChunkContaining(positionable);
-    console.warn("hoisting", get(positionable))
-    if (chunk === null) return;
-    const [chunkId, chunkContents] = chunk;
-    let empty = false;
-    chunkContents.update(_contents => {
-      _contents.splice(_contents.indexOf(positionable), 1);
-      if (_contents.length <= 0) empty = true;
-      return _contents;
-    })
-    if (empty) {
-      chunks.update(_chunks => {
-        _chunks.delete(chunkId);
-        return _chunks;
-      })
-    }
-    hoisted.update(_hoisted => {
-      if (!_hoisted.includes(positionable)) {
-        _hoisted.push(positionable);
-      }
-      return _hoisted;
-    });
-    positionable.update(v => {
-      // @ts-ignore we want this!
-      v.hoisted = true;
-      return v;
-    });
-    updatePositionable(positionable);
-  }
-  function unHoistPositionable(positionable: Writable<IPositionable<any>>) {
-    hoisted.update(_hoisted => {
-      _hoisted.splice(_hoisted.indexOf(positionable), 1);
-      return _hoisted;
-    })
-    positionable.update((v) => {
-      // @ts-ignore we want this!
-      v.hoisted = false;
-      return v;
-    });
-    updateFromPositionables();
-  }
-
-  updateFromPositionables();
-
-  onDestroy(positionables.subscribe((_positionables) => {
-    reloadChunks();
-  }))
-
-
-
-  /*onDestroy(
-    positionables.subscribe((_positionables) => {
-
-      hoistedPositionables.update((_hoisted) => {
-        chunks.update((_chunks) => {
-          // Remove unused from hoisted.
-          _hoisted.forEach((_h, i) => {
-            // TODO: perf .forEach
-            if (!_positionables.includes(_h) || get(_h).hoisted !== true) {
-              _hoisted.splice(i, 1);
-            }
-          });
-
-          // Remove unused from chunks.
-          for (const chunk of _chunks.entries()) {
-            const [chunkId, chunkPositionables] = chunk;
-            let empty = false;
-            chunkPositionables.update(_chunkPositionables => {
-              _chunkPositionables.forEach(_cP => {
-                if (!_positionables.includes(_cP)) {
-                  const index = _chunkPositionables.indexOf(_cP);
-                  if (index !== -1) _chunkPositionables.splice(index, 1);
-                  if (_chunkPositionables.length <= 0) empty = true;
-                }
-              })
-              return _chunkPositionables;
-            })
-            if (empty) _chunks.delete(chunkId);
-          }
-
-          _positionables.forEach((_positionable) => {
-            const p = get(_positionable);
-            const cI = `${Math.floor(p.x / CHUNK_WIDTH)}:${Math.floor(p.y / CHUNK_HEIGHT)}`;
-
-            // Add Hoisted.
-            // TODO: See if we can make this operate only on the positionable that changed instead of the whole array.
-            if (get(_positionable).hoisted === true) {
-              // Remove from chunk
-              if (_chunks.has(cI)) {
-                const c = _chunks.get(cI)!;
-                c.update((_c) => {
-                  const index = _c.indexOf(_positionable);
-                  if (index !== -1) _c.splice(index, 1);
-                  return _c;
-                });
-              }
-
-              if (!_hoisted.includes(_positionable)) {
-                _hoisted.push(_positionable);
-              }
-              return;
-            }
-
-            // Chunked behaviour.
-            else {
-              if (!_chunks.has(cI)) {
-                _chunks.set(cI, writable([_positionable]));
-              } else {
-                const c = _chunks.get(cI)!;
-                if (!get(c).includes(_positionable)) {
-                  c.update((_c) => {
-                    _c.push(_positionable);
-                    return _c;
-                  });
-                }
-              }
-            }
-          });
-          return _chunks;
-        });
-        return _hoisted;
-      });
-    })
-  );*/
-
-  // $: {
-  //   for (let [id, v] of $chunks.entries()) {
-  //     console.log(`Chunk ${id}: ${get(v).length}`)
-  //   }
-  // }
-
-  // TODO: Allow option of IPositionable "keepLoaded" to keep chunk it is in & itself always loaded
-  // $: visibleChunks = fastFilter((e) => {
-  //   const s = e[0].split(":");
-  //   const chunkX = parseInt(s[0]);
-  //   const chunkY = parseInt(s[1]);
-  //   return isInsideViewport(
-  //     chunkX * CHUNK_WIDTH,
-  //     chunkY * CHUNK_HEIGHT,
-  //     CHUNK_WIDTH,
-  //     CHUNK_HEIGHT,
-  //     $viewOffset.x,
-  //     $viewOffset.y,
-  //     viewPort,
-  //     $zoom,
-  //     CHUNK_WIDTH,
-  //     CHUNK_HEIGHT
-  //   );
-  // }, Array.from($chunks.entries()));
-
-  // const visibleChunks = writable(new Map<string, Writable<Writable<IPositionable<any>>[]>>());
-  // onDestroy(chunks.subscribe((_chunks) => {
-  //   const entries = Array.from($chunks.entries());
-  //   visibleChunks.update((v) => {
-  //   for (let i = 0; i < entries.length; i++) {
-  //     const e = entries[i];
-  //     const index = e[0];
-  //     const chunkX = parseInt(index.split(":")[0]);
-  //     const chunkY = parseInt(index.split(":")[1]);
-  //     if (
-  //       isInsideViewport(
-  //         chunkX * CHUNK_WIDTH,
-  //         chunkY * CHUNK_HEIGHT,
-  //         CHUNK_WIDTH,
-  //         CHUNK_HEIGHT,
-  //         $chunkOffset.x * CHUNK_WIDTH,
-  //         $chunkOffset.y * CHUNK_HEIGHT,
-  //         //$viewOffset.x,
-  //         //$viewOffset.y,
-  //         $viewPort,
-  //         $zoom,
-  //         CHUNK_WIDTH,
-  //         CHUNK_HEIGHT
-  //       )
-  //     ) {
-  //       v.set(index, e[1]);
-  //     } else {
-  //       v.delete(index);
-  //     }
-  //   }
-  //   return v;
-  // });
-  // }))
-  // onDestroy(chunks.subscribe(_chunks => {
-  //   const entries = Array.from(_chunks.entries());
-  //   visibleChunks.update((v) => {
-  //     // Remove deleted
-  //     const visibleIds = Array.from(v.keys());
-  //     for (let i = 0; i < visibleIds.length; i++) {
-  //       const id = visibleIds[i];
-  //       if (!_chunks.has(id)) {
-  //         v.delete(id);
-  //       }
-  //     }
-
-  //     // Add new
-  //     for (let i = 0; i < entries.length; i++) {
-  //       const e = entries[i];
-  //       const index = e[0];
-  //       const chunkX = parseInt(index.split(":")[0]);
-  //       const chunkY = parseInt(index.split(":")[1]);
-  //       if (
-  //         isInsideViewport(
-  //           chunkX * CHUNK_WIDTH,
-  //           chunkY * CHUNK_HEIGHT,
-  //           CHUNK_WIDTH,
-  //           CHUNK_HEIGHT,
-  //           $chunkOffset.x * CHUNK_WIDTH,
-  //           $chunkOffset.y * CHUNK_HEIGHT,
-  //           //$viewOffset.x,
-  //           //$viewOffset.y,
-  //           $viewPort,
-  //           $zoom,
-  //           CHUNK_WIDTH,
-  //           CHUNK_HEIGHT
-  //         )
-  //       ) {
-  //         v.set(index, e[1]);
-  //       } else {
-  //         v.delete(index);
-  //       }
-  //     }
-  //     return v;
-  //   });
-  // }));
-  // $: {
-  //   const entries = Array.from($chunks.entries());
-  //   visibleChunks.update((v) => {
-  //     // Remove deleted
-  //     chunks.update(_chunks => {
-  //       const visibleIds = Array.from(v.keys());
-  //       for (let i = 0; i < visibleIds.length; i++) {
-  //         const id = visibleIds[i];
-  //         if (!_chunks.has(id)) {
-  //           v.delete(id);
-  //         }
-  //       }
-  //       return _chunks;
-  //     })
-
-  //     for (let i = 0; i < entries.length; i++) {
-  //       const e = entries[i];
-  //       const index = e[0];
-  //       const chunkX = parseInt(index.split(":")[0]);
-  //       const chunkY = parseInt(index.split(":")[1]);
-  //       if (
-  //         isInsideViewport(
-  //           chunkX * CHUNK_WIDTH,
-  //           chunkY * CHUNK_HEIGHT,
-  //           CHUNK_WIDTH,
-  //           CHUNK_HEIGHT,
-  //           $chunkOffset.x * CHUNK_WIDTH,
-  //           $chunkOffset.y * CHUNK_HEIGHT,
-  //           //$viewOffset.x,
-  //           //$viewOffset.y,
-  //           $viewPort,
-  //           $zoom,
-  //           CHUNK_WIDTH,
-  //           CHUNK_HEIGHT
-  //         )
-  //       ) {
-  //         v.set(index, e[1]);
-  //       } else {
-  //         v.delete(index);
-  //       }
-  //     }
-  //     return v;
-  //   });
-  // }
-
-  // const visibleChunks = derived([chunks.chunks, chunkOffset], ([chunks, offset]) => {
-  //   return fastFilter(([id, _]) => {
-  //     const chunkX = parseInt(id.split(":")[0]);
-  //     const chunkY = parseInt(id.split(":")[1]);
-  //     if (
-  //       isInsideViewport(
-  //         chunkX * CHUNK_WIDTH,
-  //         chunkY * CHUNK_HEIGHT,
-  //         CHUNK_WIDTH,
-  //         CHUNK_HEIGHT,
-  //         offset.x * CHUNK_WIDTH,
-  //         offset.y * CHUNK_HEIGHT,
-  //         //$viewOffset.x,
-  //         //$viewOffset.y,
-  //         $viewPort,
-  //         $zoom,
-  //         CHUNK_WIDTH,
-  //         CHUNK_HEIGHT
-  //       )
-  //     ) {
-  //       return true;
-  //     } else {
-  //       return false;
-  //     }
-  //   }, [...chunks.entries()]);
-  // });
-
-  // const visibleChunks = derived([chunks, viewPort], (v) => {
-  //   const [chunks, _] = v;
-  //   return fastFilter((entry) => {
-  //     if (!viewPort) return false;
-  //     const index = entry[0];
-  //     const chunkX = parseInt(index.split(":")[0]);
-  //     const chunkY = parseInt(index.split(":")[1]);
-  //     return isInsideViewport(
-  //       chunkX * CHUNK_WIDTH,
-  //       chunkY * CHUNK_HEIGHT,
-  //       CHUNK_WIDTH,
-  //       CHUNK_HEIGHT,
-  //       $viewOffset.x,
-  //       $viewOffset.y,
-  //       $viewPort,
-  //       $zoom,
-  //       CHUNK_WIDTH,
-  //       CHUNK_HEIGHT
-  //     );
-  //   }, Array.from(chunks.entries()));
-  // });
-  // console.log($visibleChunks);
-
-  // const visibleCards = writable<IPositionable<any>[]>([]);
-  //   $: {
-  //     const entries = Array.from($visibleChunks.entries());
-  //     visibleCards.update((v) => {
-  //       for (let i = 0; i < entries.length; i++) {
-  //         const e = entries[i];
-  //         const index = e[0];
-  //         const chunkX = parseInt(index.split(":")[0]);
-  //         const chunkY = parseInt(index.split(":")[1]);
-  //         const chunk = get(e[1]);
-  //         for (let j = 0; j < chunk.length; j++) {
-  //           const p = get(chunk[j]);
-  //           if (
-  //             isInsideViewport(
-  //               p.x,
-  //               p.y,
-  //               p.width,
-  //               p.height,
-  //               $viewOffset.x,
-  //               $viewOffset.y,
-  //               $viewPort,
-  //               $zoom,
-  //               0,
-  //               0
-  //             )
-  //           ) {
-  //             if (v.indexOf(p) === -1) v.push(p);
-  //           } else {
-  //             const index = v.indexOf(p);
-  //             if (index !== -1) v.splice(index, 1);
-  //           }
-  //         }
-  //       }
-  //       return v;
-  //     });
-  //   }
-
-  // TODO: make alwys loaded configurable
-  // TODO: add alwaysLoaded to positionable
-  // TODO: Perf: Look into optimizing away the 'Array.from' everywhere.
-  // $: visiblePositionables =
-  //   $positionables.length <= 10
-  //     ? $positionables
-  //     : [
-  //         ...$hoistedPositionables,
-  //         ...fastFilter((e) => {
-  //           const _e = get(e);
-  //           return (
-  //             !_e.hoisted ||
-  //             isInsideViewport(
-  //               _e.x,
-  //               _e.y,
-  //               _e.width,
-  //               _e.height,
-  //               $viewOffset.x,
-  //               $viewOffset.y,
-  //               $viewPort,
-  //               $zoom,
-  //               0,
-  //               0
-  //             )
-  //           );
-  //         }, $visibleChunks.map((_p) => get(_p[1])).flat())
-  //       ];
-
-  // const visiblePositionables = derived([positionables, chunks.hoisted, visibleChunks], (values) => {
-  //   const _positionables = values[0];
-  //   const _hoistedPositionables = values[1];
-  //   const _visibleChunks = values[2];
-  //   // TODO: Remove dev
-  //   const visible = _positionables.length <= 0
-  //     ? _positionables
-  //     : [
-  //         ..._hoistedPositionables,
-  //         ...fastFilter((e) => {
-  //           const _e = get(e);
-  //           return (
-  //             !_e.hoisted ||
-  //             isInsideViewport(
-  //               _e.x,
-  //               _e.y,
-  //               _e.width,
-  //               _e.height,
-  //               $viewOffset.x,
-  //               $viewOffset.y,
-  //               $viewPort,
-  //               $zoom,
-  //               0,
-  //               0
-  //             )
-  //           );
-  //         }, _visibleChunks.map((_p) => get(_p[1])).flat())
-  //       ];
-
-  //   const visibleIds = visible.map(e => get(e)[POSITIONABLE_KEY]);
-
-  //   // Leave events.
-  //   for (let i = 0; i < oldVisiblePositionables.length; i++) {
-  //     const id = oldVisiblePositionables[i];
-  //     if (!visibleIds.includes(id)) {
-  //       dispatch("positionableLeave", id);
-  //     }
-  //   }
-
-  //   // Enter events.
-  //   for (let i = 0; i < visibleIds.length; i++) {
-  //     const id = visibleIds[i];
-  //     if (!oldVisiblePositionables.includes(id)) {
-  //       dispatch("positionableEnter", id);
-  //     }
-  //   }
-  //   oldVisiblePositionables = visibleIds;
-
-  //   return visible;
-  // });
-  // const visiblePositionables = derived([visibleChunks, viewOffset, viewPort, zoom], ([_visibleChunks, _viewOffset, _viewPort, _zoom]) => {
-  //   // TODO: Remove dev
-  //   return fastFilter((positionable) => {
-  //       const p = get(positionable);
-  //       return isInsideViewport(
-  //         p.x,
-  //         p.y,
-  //         p.width,
-  //         p.height,
-  //         _viewOffset.x,
-  //         _viewOffset.y,
-  //         _viewPort,
-  //         _zoom,
-  //         0,
-  //         0
-  //       );
-  //   }, [..._visibleChunks.flatMap(e => get(e[1]))]);
-  //   // const visible = _positionables.length <= 0
-  //   //   ? _positionables
-  //   //   : [
-  //   //       ..._hoistedPositionables,
-  //   //       ...fastFilter((e) => {
-  //   //         const _e = get(e);
-  //   //         return (
-  //   //           !_e.hoisted ||
-  //   //           isInsideViewport(
-  //   //             _e.x,
-  //   //             _e.y,
-  //   //             _e.width,
-  //   //             _e.height,
-  //   //             $viewOffset.x,
-  //   //             $viewOffset.y,
-  //   //             $viewPort,
-  //   //             $zoom,
-  //   //             0,
-  //   //             0
-  //   //           )
-  //   //         );
-  //   //       }, _visibleChunks.map((_p) => get(_p[1])).flat())
-  //   //     ];
-
-  //   // const visibleIds = visible.map(e => get(e)[POSITIONABLE_KEY]);
-
-  //   // // Leave events.
-  //   // for (let i = 0; i < oldVisiblePositionables.length; i++) {
-  //   //   const id = oldVisiblePositionables[i];
-  //   //   if (!visibleIds.includes(id)) {
-  //   //     dispatch("positionableLeave", id);
-  //   //   }
-  //   // }
-
-  //   // // Enter events.
-  //   // for (let i = 0; i < visibleIds.length; i++) {
-  //   //   const id = visibleIds[i];
-  //   //   if (!oldVisiblePositionables.includes(id)) {
-  //   //     dispatch("positionableEnter", id);
-  //   //   }
-  //   // }
-  //   // oldVisiblePositionables = visibleIds;
-
-  //   // return visible;
-  // });
-
   onMount(() => {
     if (!resizeObserver) {
       resizeObserver = new ResizeObserver(() => {
@@ -1039,67 +203,229 @@
     }
   });
 
-  onDestroy(() => {
-    if (resizeObserver) {
-      resizeObserver.disconnect();
+  const visiblePositionables = derived(
+    [positionables, viewOffset, viewPort, zoom],
+    ([_positionables, _viewOffset, _viewPort, _zoom]) => {
+      return fastFilter((positionable) => {
+        const p = get(positionable);
+        return isInsideViewport(
+          p.x,
+          p.y,
+          p.width,
+          p.height,
+          _viewOffset.x,
+          _viewOffset.y,
+          _viewPort,
+          _zoom,
+          CHUNK_WIDTH,
+          CHUNK_HEIGHT
+        );
+      }, _positionables);
+    }
+  );
+
+  const renderedPositionables = writable<Writable<IPositionable<any>>[]>([]);
+  let toBeRendered: Writable<IPositionable<any>>[] = [];
+  let toBeRemoved: Writable<IPositionable<any>>[] = [];
+
+
+  function processRender() {
+    let start = performance.now();
+    const RENDER_NUM = 8;
+    if (toBeRendered.length === 0 && toBeRemoved.length === 0) return;
+    const toRender = toBeRendered.splice(0, RENDER_NUM);
+    // const toRemove = toBeRemoved//.splice(0, 5);
+    renderedPositionables.update((v) => {
+      v = v.concat(toRender);
+
+      // Remove elements from toRender from toBeRendered
+      for (let i = 0; i < toRender.length; i++) {
+        const e = toRender[i];
+        const index = toBeRendered.indexOf(e);
+        if (index !== -1) {
+          toBeRendered.splice(index, 1);
+        }
+      }
+
+      // remove duplicate keys from rendered positionables
+      //v = v.filter((v, i, a) => a.findIndex(t => (get(t)[POSITIONABLE_KEY] === get(v)[POSITIONABLE_KEY])) === i)
+
+      let removed = 0;
+      for (let i = 0; i < v.length; i++) {
+        const p = get(v[i]);
+        if (
+          !isInsideViewport(
+            p.x,
+            p.y,
+            p.width,
+            p.height,
+            $viewOffset.x,
+            $viewOffset.y,
+            $viewPort,
+            $zoom,
+            CHUNK_WIDTH,
+            CHUNK_HEIGHT
+          )
+        ) {
+          v.splice(i, 1);
+          removed += 1;
+        }
+      }
+      // for (let i = 0; i < toRemove.length; i++) {
+      //   const e = toRemove[i];
+      //   v = v.slice(v.indexOf(e), 1);
+      //   toBeRemoved = toBeRemoved.splice(toBeRemoved.indexOf(e), 1);
+      //   removed += 1;
+      // }
+      if (removed > 0) console.debug(`removed ${removed} positionables.`);
+      return v;
+    });
+    if (toBeRendered.length - RENDER_NUM > 0) {
+      setTimeout(processRender);
+    } else {
+      prt = null;
+    }
+    let end = performance.now();
+    console.debug(`rendered ${RENDER_NUM} positionables in ${end - start}ms`);
+  }
+  // queueMicrotask(processRender);
+  let prt: number | null = null;
+  prt = setTimeout(processRender);
+  // setInterval(() => queueMicrotask(processRender), 100);
+
+  visiblePositionables.subscribe((v) => {
+    // Find new positionables which need to be rendered.
+    const newRenderedPositionables = fastFilter((positionable) => {
+      return !get(renderedPositionables).includes(positionable);
+    }, v);
+
+    for (let i = 0; i < newRenderedPositionables.length; i++) {
+      const toRender = newRenderedPositionables[i];
+      if (toBeRendered.includes(toRender)) continue;
+      toBeRendered.push(toRender);
+    }
+
+    // Find positionables which are out of view and need to be removed.
+    // const removedRenderedPositionables = fastFilter((positionable) => {
+    //   //return !v.includes(positionable);
+    //   const p = get(positionable);
+    //   return isInsideViewport(
+    //     p.x,
+    //     p.y,
+    //     p.width,
+    //     p.height,
+    //     $viewOffset.x,
+    //     $viewOffset.y,
+    //     $viewPort,
+    //     $zoom,
+    //     CHUNK_WIDTH,
+    //     CHUNK_HEIGHT
+    //   );
+    // }, get(renderedPositionables));
+
+    // for (let i = 0; i < removedRenderedPositionables.length; i++) {
+    //   const toRemove = removedRenderedPositionables[i];
+    //   if (toBeRemoved.includes(toRemove)) continue;
+    //   toBeRemoved.push(toRemove);
+    // }
+
+    // // Queue microtask to render 5 of the new rendered positionables.
+    // setTimeout(() => {
+    //   const toRender = newRenderedPositionables//.splice(0, 5);
+    //   console.debug(`rendering ${toRender.length} new positionables.`)
+    //   renderedPositionables.update(v => {
+    //     v = v.concat(toRender);
+    //     // remove duplicate keys from rendered positionables
+    //     v = v.filter((v, i, a) => a.findIndex(t => (get(t)[POSITIONABLE_KEY] === get(v)[POSITIONABLE_KEY])) === i)
+
+    //     let removed = 0;
+    //     for (let i = 0; i < removedRenderedPositionables.length; i++) {
+    //       const toRemove = removedRenderedPositionables[i];
+    //       v.slice(v.indexOf(toRemove), 1);
+    //       removed += 1;
+    //     }
+    //     console.debug(`removed ${removed} positionables.`)
+    //     return v;
+    //   });
+    // });
+
+    if (toBeRendered.length > 0 && prt === null) {
+      prt = setTimeout(processRender);
     }
   });
 
-  // Utils
-  function clearSelection() {
-    selection.update((v) => {
-      v.clear();
-      return v;
-    });
+  if (typeof requestPostAnimationFrame !== "function") {
+    monkeyPatchRequestPostAnimationFrame();
   }
 
-  /**
-   * Bound x,y,width,height by boundaries from settings.
-   * @param x
-   * @param y
-   * @param width
-   * @param height
-   */
-  function applyBounds(x: number, y: number, width: number, height: number) {
-    let outX = x;
-    let outY = y;
-    if ($settings.BOUNDS?.minX !== null && x < $settings.BOUNDS!.minX) {
-      outX = $settings.BOUNDS!.minX;
-    } else if ($settings.BOUNDS?.maxX !== null && x + width > $settings.BOUNDS!.maxX) {
-      outX = $settings.BOUNDS!.maxX - width;
-    }
-
-    if ($settings.BOUNDS?.minY !== null && y < $settings.BOUNDS!.minY) {
-      outY = $settings.BOUNDS!.minY;
-    } else if ($settings.BOUNDS?.maxY !== null && y + height > $settings.BOUNDS!.maxY) {
-      outY = $settings.BOUNDS!.maxY - height;
-    }
-    return { x: outX, y: outY };
+  // monkey-patches requestPostAnimationFrame
+  //!\ Can not be called from inside a requestAnimationFrame callback
+  function monkeyPatchRequestPostAnimationFrame() {
+    console.warn("using a MessageEvent workaround");
+    const channel = new MessageChannel();
+    const callbacks = [];
+    let timestamp = 0;
+    let called = false;
+    channel.port2.onmessage = (e) => {
+      called = false;
+      const toCall = callbacks.slice();
+      callbacks.length = 0;
+      toCall.forEach((fn) => {
+        try {
+          fn(timestamp);
+        } catch (e) {}
+      });
+    };
+    window.requestPostAnimationFrame = function (callback) {
+      if (typeof callback !== "function") {
+        throw new TypeError("Argument 1 is not callable");
+      }
+      callbacks.push(callback);
+      if (!called) {
+        requestAnimationFrame((time) => {
+          timestamp = time;
+          channel.port1.postMessage("");
+        });
+        called = true;
+      }
+    };
   }
 
-  // UI Handlers
-  let lastViewX = 0;
-  let lastViewY = 0;
-  let targetOffsetX = 0;
-  let targetOffsetY = 0;
-  let animationFrame: number | null = null;
-  let offsetTimeout: number | null = null;
+  let lastChunkX = Math.floor($viewOffset.x / CHUNK_WIDTH);
+  let lastChunkY = Math.floor($viewOffset.y / CHUNK_HEIGHT);
+  let panAnimationFrame: number | null = null;
+  let panModeTimeout: number | null = null;
+
   let microTaskKey = {};
   // TODO: Rename this is a macrotask AcTuaLly
   function queueMicroTask(cbk: any) {
     microTaskKey = {};
     const currentKey = microTaskKey;
-    setTimeout(() => {
+    queueMicrotask(() => {
       if (microTaskKey === currentKey) cbk();
-    })
+    });
   }
+
+  // let lastFrame = 0;
+  // setInterval(() => {
+  //   requestAnimationFrame((time) => {
+  //     // const delta = time - lastFrame;
+  //     // lastFrame = time;
+  //     // console.log(delta)
+  //     viewOffset.update(v => {
+  //       v.x = viewOffsetTargetX;
+  //       v.y = viewOffsetTargetY;
+  //       return v;
+  //     })
+  //   })
+  // }, 1000 / 60);
+
   function onWheel(e: WheelEvent) {
-    // TODO: bypasses from setting
-    // TODO: ZOOM
+    e.preventDefault();
     if (e.ctrlKey && $settings.CAN_ZOOM) {
       e.preventDefault();
       e.stopPropagation();
-      mode.zoom();
+      $mode = "zoom";
 
       const absXOld = $viewOffset.x + e.clientX / $zoom;
       const absYOld = $viewOffset.y + e.clientY / $zoom;
@@ -1112,639 +438,90 @@
       const offsetX = absXOld - absXNew;
       const offsetY = absYOld - absYNew;
 
-      viewOffset.set(
-        { x: $viewOffset.x + offsetX, y: $viewOffset.y + offsetY },
-        { duration: 0, hard: true }
-      );
-      zoom.set(newZoom, { duration: 0 });
-
-      // TODO: Dispatch zoom reset
-      debounce("end_zoom", 100, mode.idle);
-    } else if ($settings.CAN_PAN) {
-      if (hasClassOrParentWithClass(e.target as HTMLElement, "tela-ignore")) return; // TODO: Origin of safari bug?
-      e.preventDefault();
-      e.stopPropagation();
-      mode.pan(); // TODO: only if not already?
-
-      let deltaX =
-        $settings.PAN_DIRECTION === "xy" || $settings.PAN_DIRECTION === "x" ? e.deltaX / $zoom : 0;
-      let deltaY =
-        $settings.PAN_DIRECTION === "xy" || $settings.PAN_DIRECTION === "y" ? e.deltaY / $zoom : 0;
-
-      // if (!hasClassOrParentWithClass(e.target as HTMLElement, "draggable")) {
-      if ($settings.PAN_DIRECTION === "x") {
-        deltaX += e.deltaY / $zoom;
-        // mode.pan();
+      if (panAnimationFrame !== null) {
+        cancelAnimationFrame(panAnimationFrame);
       }
-      else if ($settings.PAN_DIRECTION === "y") {
-        deltaY += e.deltaX / $zoom;
-        // mode.pan();
-      }
-      // } else {
-      //   if (deltaX < 20 && deltaX > -20) {deltaX = 0;}
-      //   else {
-      //     mode.pan();
-      //   }
-      // }
-
-      // TODO: BOUND MAX
-      let boundX = Math.floor($viewOffset.x + deltaX); // TODO: works with zoom also? prob. not..
-      let boundY = Math.floor($viewOffset.y + deltaY);
-      if (boundX === lastViewX && boundY === lastViewY) return;
-
-      // This monster is responsible for the "rubber band" effect / hard limits
-      let reachedBounds = false;
-
-      if (isFinite($settings.BOUNDS.minX) && boundX < $settings.BOUNDS.minX) {
-        boundX = $settings.BOUNDS.minX;
-        reachedBounds = true;
-      } else if (
-        isFinite($settings.BOUNDS.maxX) &&
-        boundX + $viewPort.w / $zoom > $settings.BOUNDS.maxX
-      ) {
-        boundX = $settings.BOUNDS.maxX - $viewPort.w / $zoom;
-        reachedBounds = true;
-      } else if (isFinite($settings.BOUNDS.minY) && boundY < $settings.BOUNDS.minY) {
-        boundY = $settings.BOUNDS.minY;
-        reachedBounds = true;
-      } else if (
-        isFinite($settings.BOUNDS.maxY) &&
-        boundY + $viewPort.h / $zoom > $settings.BOUNDS.maxY
-      ) {
-        boundY = $settings.BOUNDS.maxY - $viewPort.h / $zoom;
-        reachedBounds = true;
-      }
-
-      // if ($settings.BOUNDS.limit === "soft") {
-      //   viewOffset.set({ x: boundX, y: boundY }, reachedBounds ? { soft: 0.07 } : { hard: true });
-      // } else {
-      //   viewOffset.set({ x: boundX, y: boundY }, { duration: 0 });
-      // }
-
-      targetOffsetX += e.deltaX;
-      targetOffsetY += e.deltaY;
-      lastViewX = boundX;
-      lastViewY = boundY;
-
-      if ((lastViewX / CHUNK_WIDTH !== targetOffsetX / CHUNK_WIDTH) || (lastViewY / CHUNK_HEIGHT !== targetOffsetY / CHUNK_HEIGHT)) {
-        queueMicroTask(() => {
-          vChunkOffset.update(v => {
-            v.x = targetOffsetX / CHUNK_WIDTH;
-            v.y = targetOffsetY / CHUNK_HEIGHT;
-            return v;
-          })
-        })
-      }
-
-      if (animationFrame === null) {
-        animationFrame = requestAnimationFrame(() => {
-          viewOffset.update(v => {
-            v.x = targetOffsetX;
-            v.y = targetOffsetY;
-            return v;
-          }, { duration: 0, hard: true })
-          // viewOffset.set({ x: targetOffsetX, y: targetOffsetY }, { duration: 0 });
-          animationFrame = null;
+      panAnimationFrame = requestAnimationFrame(() => {
+        viewOffset.update((v) => {
+          v.x = v.x + offsetX;
+          v.y = v.y + offsetY;
+          return v;
         });
-      }
-      // if (animationFrame !== null) {
-      //   cancelAnimationFrame(animationFrame);
-      // }
-      // animationFrame = requestAnimationFrame(() => {
-      //     viewOffset.update(v => {
-      //       v.x = targetOffsetX;
-      //       v.y = targetOffsetY;
-      //       return v;
-      //     }, { duration: 0, hard: true })
-      //     // viewOffset.set({ x: targetOffsetX, y: targetOffsetY }, { duration: 0 });
-      //     animationFrame = null;
-      //   });
-
-      // TODO: Done event --> use native pan method
-
-      debounce("end_scroll_pan", 100, mode.idle);
-    }
-  }
-
-  function onKeyDown(e: KeyboardEvent) {
-    if (e.ctrlKey && e.key === "0") {
-      $settings.DEV = !$settings.DEV;
-    } else if ($mode === "idle" && e.key === "Escape") {
-      clearSelection();
-    } else if (e.key === "Escape") {
-      mode.idle();
-    }
-  }
-
-  // TELA Handlers
-  // Idle
-  /**
-   * Use capture, to ensure select also works on top of draggable stuff.
-   */
-  function onMouseDown_idleCapture(e: MouseEvent | TouchEvent) {
-    if (!e.shiftKey) return;
-    const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
-    const { x: absX, y: absY } = posToAbsolute(
-      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
-      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-    // e.stopPropagation();
-    // e.preventDefault();
-
-    select_init.x = absX;
-    select_init.y = absY;
-    $state.selectionRect.set({
-      x: absX,
-      y: absY,
-      w: 0,
-      h: 0
-    });
-    mode.select();
-  }
-  function onMouseDown_idle(e: MouseEvent | TouchEvent) {
-    const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
-    if (
-      hasClassOrParentWithClass(e.target as HTMLElement, "positionable") ||
-      hasClassOrParentWithClass(e.target as HTMLElement, "draggable") ||
-      hasClassOrParentWithClass(e.target as HTMLElement, "resizable")
-    )
-      return;
-    const { x: absX, y: absY } = posToAbsolute(
-      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
-      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-
-    // e.stopPropagation();
-    // e.preventDefault();
-
-    select_init.x = absX;
-    select_init.y = absY;
-    $state.selectionRect.set({
-      x: absX,
-      y: absY,
-      w: 0,
-      h: 0
-    });
-    mode.modSelect();
-  }
-
-  // Select
-  function onMouseMove_select(e: MouseEvent | TouchEvent) {
-    const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
-    const { x: absX, y: absY } = posToAbsolute(
-      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
-      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-    const offsetX = absX - select_init.x;
-    const offsetY = absY - select_init.y;
-
-    let x = select_init.x;
-    let y = select_init.y;
-    let w = offsetX;
-    let h = offsetY;
-
-    if (offsetX < 0) {
-      x = absX;
-      w = Math.abs(offsetX);
-    }
-    if (offsetY < 0) {
-      y = absY;
-      h = Math.abs(offsetY);
-    }
-
-    $state.selectionRect.update((v) => {
-      v!.x = x;
-      v!.y = y;
-      v!.w = w;
-      v!.h = h;
-      return v;
-    });
-
-    selection.update((_selection) => {
-      _selection.clear(); // TODO: Allow select multiple, off screen also?
-      $positionables.forEach((_card) => {
-        const c = get(_card);
-        if (rectsIntersect({ x: c.x, y: c.y, w: c.width, h: c.height }, { x, y, w, h })) {
-          _selection.add(c[POSITIONABLE_KEY]);
-        } else {
-          _selection.delete(c[POSITIONABLE_KEY]);
+        zoom.update(v => {
+          v = newZoom;
+          return v;
+        })
+        panAnimationFrame = null;
+        if (panModeTimeout !== null) {
+          clearTimeout(panModeTimeout);
         }
+        panModeTimeout = setTimeout(() => {
+          $mode = "idle";
+          panModeTimeout = null;
+        }, 100);
       });
-      return _selection;
-    });
-    // deprecated: dispatch("selectChange", { rect: { x, y, w, h }, visibleCards });
-  }
+    } else {
+      $mode = "pan";
 
-  // MetaSelect
-  function onMouseMove_modSelect(e: MouseEvent | TouchEvent) {
-    const target = (e as TouchEvent).targetTouches?.item(0)?.target || (e as MouseEvent).target;
-    const { x: absX, y: absY } = posToAbsolute(
-      (e as TouchEvent).targetTouches?.item(0)?.clientX || (e as MouseEvent).clientX,
-      (e as TouchEvent).targetTouches?.item(0)?.clientY || (e as MouseEvent).clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-    const offsetX = absX - select_init.x;
-    const offsetY = absY - select_init.y;
+      viewOffsetTargetX += e.deltaX * (2 - $zoom);
+      viewOffsetTargetY += e.deltaY * (2 - $zoom);
+      // viewOffset.update(v => {
+      //   v.x = viewOffsetTargetX;
+      //   v.y = viewOffsetTargetY;
+      //   return v;
+      // })
+      viewOffset.update((v) => {
+          v.x = viewOffsetTargetX;
+          v.y = viewOffsetTargetY;
+          return v;
+        });
 
-    let x = select_init.x;
-    let y = select_init.y;
-    let w = offsetX;
-    let h = offsetY;
-
-    if (offsetX < 0) {
-      x = absX;
-      w = Math.abs(offsetX);
-    }
-    if (offsetY < 0) {
-      y = absY;
-      h = Math.abs(offsetY);
-    }
-
-    $state.selectionRect.update((v) => {
-      v!.x = x;
-      v!.y = y;
-      v!.w = w;
-      v!.h = h;
-      return v;
-    });
-
-    dispatch("modSelectChange", { rect: $selectionRect });
-  }
-  function onMouseUp_modSelect(e: MouseEvent | TouchEvent) {
-    dispatch("modSelectEnd", { rect: $selectionRect });
-    mode.idle();
-  }
-
-  const dragState = {
-    init: { x: 0, y: 0 },
-    curr: { x: 0, y: 0 },
-    offset: { x: 0, y: 0 }, // TODO: Do we need this? -> Can we merge with relativeOffset?
-    relativeOffset: { x: 0, y: 0 },
-    positionableInit: { x: 0, y: 0 }
-  };
-  function draggable_onMouseDown(
-    e: CustomEvent<{
-      event: MouseEvent | TouchEvent;
-      positionable: Writable<IPositionable<any>>;
-      clientX: number;
-      clientY: number;
-    }>
-  ) {
-    const { positionable, clientX, clientY } = e.detail;
-    const { x: absX, y: absY } = posToAbsolute(
-      clientX,
-      clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-
-    moveToStackingTop(stackingOrder, get(positionable)[POSITIONABLE_KEY]);
-
-    positionable.update((p) => {
-      dragState.init.x = absX;
-      dragState.init.y = absY;
-      dragState.curr.x = absX;
-      dragState.curr.y = absY;
-      dragState.relativeOffset.x = absX - p.x;
-      dragState.relativeOffset.y = absY - p.y;
-      dragState.positionableInit.x = p.x;
-      dragState.positionableInit.y = p.y;
-
-      p.x = absX - dragState.relativeOffset.x;
-      p.y = absY - dragState.relativeOffset.y;
-      return p;
-    });
-  }
-  function draggable_onMouseMove(
-    e: CustomEvent<{
-      event: MouseEvent | TouchEvent;
-      positionable: Writable<IPositionable<any>>;
-      clientX: number;
-      clientY: number;
-    }>
-  ) {
-    const { positionable, clientX, clientY } = e.detail;
-    const { x: absX, y: absY } = posToAbsolute(
-      clientX,
-      clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-
-    let startedDragging = false;
-    if ($mode !== "dragging") {
-      startedDragging = true;
-      mode.dragging();
-    }
-
-    dragState.offset.x = absX - dragState.init.x;
-    dragState.offset.y = absY - dragState.init.y;
-    dragState.curr.x = absX;
-    dragState.curr.y = absY;
-
-    positionable.update((p) => {
-      const { x: boundX, y: boundY } = applyBounds(
-        absX - dragState.relativeOffset.x,
-        absY - dragState.relativeOffset.y,
-        p.width,
-        p.height
-      );
-
-      p.x = boundX;
-      p.y = boundY;
-      return p;
-    });
-
-    if (startedDragging) {
-      dispatch("draggableStart", { positionable });
-    }
-  }
-  function draggable_onMouseUp(
-    e: CustomEvent<{
-      event: MouseEvent | TouchEvent;
-      positionable: Writable<IPositionable<any>>;
-      clientX: number;
-      clientY: number;
-    }>
-  ) {
-    const { positionable, clientX, clientY } = e.detail;
-    const { x: absX, y: absY } = posToAbsolute(
-      clientX,
-      clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-
-    // TODO3: Issues cuz update positionable before chunks?
-    positionable.update((p) => {
-      const { x: boundX, y: boundY } = applyBounds(
-        absX - dragState.relativeOffset.x,
-        absY - dragState.relativeOffset.y,
-        p.width,
-        p.height
-      );
-
-      // p.x = boundX;
-      // p.y = boundY;
-
-      // let x = absX - dragState.relativeOffset.x;
-      // let y = absY - dragState.relativeOffset.y;
-      if ($settings.SNAP_TO_GRID) {
-        p.x = snapToGrid(boundX, $settings.GRID_SIZE);
-        p.y = snapToGrid(boundY, $settings.GRID_SIZE);
-      } else {
-        p.x = boundX;
-        p.y = boundY;
+      if (panAnimationFrame !== null) {
+        cancelAnimationFrame(panAnimationFrame);
       }
+      panAnimationFrame = requestAnimationFrame(() => {
+        viewX = viewOffsetTargetX;
+        viewY = viewOffsetTargetY;
+        // viewOffset.set({ x: targetOffsetX, y: targetOffsetY }, { duration: 0 });
+        panAnimationFrame = null;
+        if (panModeTimeout !== null) {
+          clearTimeout(panModeTimeout);
+        }
+        panModeTimeout = setTimeout(() => {
+          $mode = "idle";
+          panModeTimeout = null;
+        }, 100);
+      });
 
-      return p;
-    });
+      // viewOffset.update(v => {
+      //   v.x += e.deltaX;
+      //   v.y += e.deltaY;
 
-    updatePositionable(positionable);
-
-    mode.idle();
-    dispatch("draggableEnd", positionable);
-  }
-
-  function resizable_onMouseDown(
-    e: CustomEvent<{
-      event: MouseEvent | TouchEvent;
-      positionable: Writable<IPositionable<any>>;
-      clientX: number;
-      clientY: number;
-    }>
-  ) {
-    const { positionable, clientX, clientY } = e.detail;
-    const { x: absX, y: absY } = posToAbsolute(
-      clientX,
-      clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-
-    mode.resizing();
-    moveToStackingTop(stackingOrder, get(positionable)[POSITIONABLE_KEY]);
-
-    dragState.init.x = absX;
-    dragState.init.y = absY;
-    dragState.curr.x = absX;
-    dragState.curr.y = absY;
-    dragState.relativeOffset.x = absX - clientX;
-    dragState.relativeOffset.y = absY - clientY;
-    dragState.positionableInit.x = get(positionable).x;
-    dragState.positionableInit.y = get(positionable).y;
-  }
-  function resizable_onMouseMove(
-    e: CustomEvent<{
-      event: MouseEvent | TouchEvent;
-      positionable: Writable<IPositionable<any>>;
-      clientX: number;
-      clientY: number;
-      direction: TResizeDirection;
-      minSize: Vec2<number>;
-      maxSize: Vec2<number>;
-    }>
-  ) {
-    const { positionable, clientX, clientY, direction, minSize, maxSize } = e.detail;
-    const { x: absX, y: absY } = posToAbsolute(
-      clientX,
-      clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-
-    dragState.offset.x = absX - dragState.init.x;
-    dragState.offset.y = absY - dragState.init.y;
-    dragState.curr.x = absX;
-    dragState.curr.y = absY;
-
-    positionable.update((p) => {
-      let x = p.x;
-      let y = p.y;
-      let width = p.width;
-      let height = p.height;
-
-      // TODO: CLAMPS
-      // TODO: PREVENT MOVING OVER INITIAL WIDTH & POS
-
-      if (direction === "right") {
-        width = clamp(absX - p.x, minSize.x, maxSize.x);
-      } else if (direction === "bottom") {
-        height = absY - p.y;
-      } else if (direction === "top") {
-        y = absY;
-        height = p.y + p.height - absY;
-      } else if (direction === "left") {
-        x = absX;
-        width = p.x + p.width - absX;
-      } else if (direction === "top-left") {
-        x = absX;
-        y = absY;
-        width = p.x + p.width - absX;
-        height = p.y + p.height - absY;
-      } else if (direction === "top-right") {
-        y = absY;
-        width = absX - p.x;
-        height = p.y + p.height - absY;
-      } else if (direction === "bottom-left") {
-        x = absX;
-        width = p.x + p.width - absX;
-        height = absY - p.y;
-      } else if (direction === "bottom-right") {
-        width = absX - p.x;
-        height = absY - p.y;
-      }
-
-      // TODO: MIN HEIGHT
-      width = clamp(width, minSize.x, maxSize.x);
-      height = clamp(height, minSize.y, maxSize.y);
-      // TODO: MIN WIDHT
-
-      // TODO: BOUNDS CHECKING
-      const { x: boundX, y: boundY } = applyBounds(x, y, width, height);
-
-      p.x = boundX;
-      p.y = boundY;
-      p.width = width;
-      p.height = height;
-      return p;
-    });
-
-    dispatch("resizableStart", { positionable });
-  }
-  function resizable_onMouseUp(
-    e: CustomEvent<{
-      event: MouseEvent | TouchEvent;
-      positionable: Writable<IPositionable<any>>;
-      clientX: number;
-      clientY: number;
-      direction: TResizeDirection;
-      minSize: number;
-      maxSize: number;
-    }>
-  ) {
-    const { positionable, clientX, clientY } = e.detail;
-    const { x: absX, y: absY } = posToAbsolute(
-      clientX,
-      clientY,
-      $viewOffset.x,
-      $viewOffset.y,
-      $viewPort,
-      $zoom
-    );
-    // TODO: BOUNDS CHECKING& APPLY final pos
-
-    positionable.update((p) => {
-      let x = p.x;
-      let y = p.y;
-      let width = p.width;
-      let height = p.height;
-
-      if ($settings.SNAP_TO_GRID) {
-        x = snapToGrid(x, $settings.GRID_SIZE);
-        y = snapToGrid(y, $settings.GRID_SIZE);
-        width = snapToGrid(width, $settings.GRID_SIZE);
-        height = snapToGrid(height, $settings.GRID_SIZE);
-      }
-
-      const { x: boundX, y: boundY } = applyBounds(x, y, width, height);
-
-      p.x = boundX;
-      p.y = boundY;
-      p.width = width;
-      p.height = height;
-
-      return p;
-    });
-
-    updatePositionable(positionable);
-
-    mode.idle();
-    dispatch("resizableEnd", positionable);
-  }
-
-  function onHoist(e: CustomEvent<string>) {
-    const key = e.detail;
-    const positionable = $positionables.find((p) => get(p)[POSITIONABLE_KEY] === key);
-    if (!positionable) {
-      console.error(`[TELA] Tried to hoist non-existing positionable: ${key}`);
-      return;
+      //   if ((Math.floor(v.x / CHUNK_WIDTH) !== lastChunkX)|| (Math.floor(v.y / CHUNK_WIDTH) !== lastChunkY)) {
+      //   lastChunkX = Math.floor(v.x / CHUNK_WIDTH);
+      //   lastChunkY = Math.floor(v.y / CHUNK_HEIGHT);
+      //   chunkOffset.update(v => {
+      //     v.x = lastChunkX;
+      //     v.y = lastChunkY;
+      //     return v;
+      //   })
+      // }
+      //   return v;
+      // })
     }
-    if (get(positionable).hoisted) return;
-    hoistPositionable(positionable);
-  }
-  function onUnhoist(e: CustomEvent<string>) {
-    const key = e.detail;
-    const positionable = $positionables.find((p) => get(p)[POSITIONABLE_KEY] === key);
-    if (!positionable) {
-      console.error(`[TELA] Tried to un-hoist non-existing positionable: ${key}`);
-      return;
-    }
-    if (!get(positionable).hoisted) return;
-    unHoistPositionable(positionable);
   }
 
-  onMount(() => {
-    containerEl.addEventListener("draggable_onMouseDown", draggable_onMouseDown);
-    containerEl.addEventListener("draggable_onMouseMove", draggable_onMouseMove);
-    containerEl.addEventListener("draggable_onMouseUp", draggable_onMouseUp);
-    containerEl.addEventListener("resizable_onMouseDown", resizable_onMouseDown);
-    containerEl.addEventListener("resizable_onMouseMove", resizable_onMouseMove);
-    containerEl.addEventListener("resizable_onMouseUp", resizable_onMouseUp);
-    containerEl.addEventListener("tela_hoist", onHoist);
-    containerEl.addEventListener("tela_unhoist", onUnhoist);
-  });
-  onDestroy(() => {
-    containerEl && containerEl.removeEventListener("draggable_onMouseDown", draggable_onMouseDown);
-    containerEl && containerEl.removeEventListener("draggable_onMouseMove", draggable_onMouseMove);
-    containerEl && containerEl.removeEventListener("draggable_onMouseUp", draggable_onMouseUp);
-    containerEl && containerEl.removeEventListener("resizable_onMouseDown", resizable_onMouseDown);
-    containerEl && containerEl.removeEventListener("resizable_onMouseMove", resizable_onMouseMove);
-    containerEl && containerEl.removeEventListener("resizable_onMouseUp", resizable_onMouseUp);
-    containerEl && containerEl.removeEventListener("tela_hoist", onHoist);
-    containerEl && containerEl.removeEventListener("tela_unhoist", onUnhoist);
-  });
+  function onMouseMove(e: MouseEvent) {}
 </script>
-
-<svelte:window on:keydown={onKeyDown} />
-<!-- <svelte:options immutable={true} /> -->
 
 <!--
   TODO: switch to use resize observer to update viewport
 -->
+<!-- on:mousemove|capture={onMouseMove} -->
 <div
   class="tela-container {$$restProps.class || ''}"
   bind:this={containerEl}
   on:wheel={onWheel}
-  on:wheel
-  on:mousedown={(e) => {
-    if (!hasClassOrParentWithClass(e.target, "draggable")) clearSelection();
-  }}
   on:mousedown
 >
   {#if $settings.DEV}
@@ -1762,20 +539,26 @@
               >{$viewOffset.x}, {$viewOffset.y} // {$chunkOffset.x}, {$chunkOffset.y}</span
             >
           </li>
-          <li>
+          <!-- <li>
             <span>Viewport:</span><span
               >{$viewPort.x}, {$viewPort.y}, {$viewPort.w}, {$viewPort.h}</span
             >
-          </li>
+          </li> -->
           <li><span>N-Cards:</span><span>{$positionables.length}</span></li>
-          <li><span>N-Chunks:</span><span>{$chunks.size}</span></li>
+          <!-- <li><span>N-Chunks:</span><span>{$chunks.size}</span></li>
           <li><span>Hot Chunks:</span><span>{$visibleChunks.length}</span></li>
-          <li><span>Target Offset:</span><span>{targetOffsetX} // {targetOffsetY}</span></li>
-          <li>
+          <li><span>Target Offset:</span><span>{targetOffsetX} // {targetOffsetY}</span></li> -->
+          <!-- <li>
             <span>Hot Cards:</span><span
               >{$visiblePositionables.length}
               <small>({$hoisted.length} hoisted)</small></span
             >
+          </li>-->
+          <li>
+            <span>Hot Cards:</span><span>{$visiblePositionables.length}</span>
+          </li>
+          <li>
+            <span>Rendered Cards:</span><span>{$renderedPositionables.length}</span>
           </li>
           <!-- NOTE: Major perf hit due to conditional slot -> No custom dev overlay for now -->
           <!-- TODO: Look into optimizing dev overlay perf -->
@@ -1783,28 +566,37 @@
         </ul>
       </li>
       <br />
-      <DebugPanels />
+      <!-- <DebugPanels /> -->
     </ul>
   {/if}
 
-  <div class="tela-board mode-{$mode}" style={$transformCss}>
-    {#if $mode === "select" || $mode === "modSelect"}
-      <slot name="selectRect" />
-    {/if}
+  <!-- {#if $mode === "pan"} -->
+    <div class="tela-overlay" />
+  <!-- {/if} -->
 
-    {#if $settings.DEV}
-      <!-- TODO: Using iterator requires updating lib users to Svelte4 -->
-      <!-- TODO: Perf use iterator is much faster: https://github.com/sveltejs/svelte/issues/7425#issuecomment-1461021936 -->
+  <div class="tela-board" style="transform: {$zoom !== 1 ? `scale(${$zoom * 100}%)` : ""} translate3d({-viewX}px, {-viewY}px, 0px);">
+    <!-- {#if $mode === "select" || $mode === "modSelect"}
+      <slot name="selectRect" />
+    {/if} -->
+
+    <!-- {#if $settings.DEV}
+      <!-- TODO: Using iterator requires updating lib users to Svelte4 --
+      <!-- TODO: Perf use iterator is much faster: https://github.com/sveltejs/svelte/issues/7425#issuecomment-1461021936 --
       {#each $visibleChunks as [chunkId, _] (chunkId)}
         {@const index = chunkId.split(":")}
         {@const chunkX = parseInt(index[0])}
         {@const chunkY = parseInt(index[1])}
         <ChunkOverlay {chunkX} {chunkY} />
       {/each}
-    {/if}
+    {/if} -->
 
-    {#each $visiblePositionables as positionable (get(positionable)[POSITIONABLE_KEY])}
+    {#each $renderedPositionables as positionable (get(positionable)[POSITIONABLE_KEY])}
+        <!-- {#if $zoom > 0.3} -->
       <slot {positionable} />
+      <!-- {:else}
+      {@const p = get(positionable)}
+      <div class="cardLOD" style="width: {p.width}px; height: {p.height}px;top: {p.y}px; left: {p.x}px;"></div>
+      {/if} -->
     {/each}
 
     <!-- Note: Iterating the chunks instead of visible positionables directly solves card reloading
@@ -1826,8 +618,14 @@
     isolation: isolate;
     overflow: hidden;
     overscroll-behavior: contain;
+    contain: strict;
     width: 100%;
     height: 100%;
+    /* content-visibility: auto; */
+  }
+  :global(.cardLOD) {
+    position: absolute;
+    background: rgb(150, 150, 150);
   }
   .tela-container * {
     box-sizing: border-box;
@@ -1836,7 +634,30 @@
     position: absolute;
     backface-visibility: hidden;
     transform-origin: top left;
+    contain: style layout;
+    display: grid;
+    grid-template-columns: 1fr;
+    /* cubic-bezier(0, .29, .65, .99) */
+    /* transition: transform 0.92s cubic-bezier(0, .29, .65, .99); */
+    /*ease-out;*/
   }
+  .tela-board > * {
+    grid-row-start: 1;
+    grid-column-start: 1;
+  }
+
+  .tela-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    user-select: none;
+    z-index: 999999;
+  }
+
+  /* DEV */
   .tela-container > .dev {
     margin: 0;
     position: absolute;

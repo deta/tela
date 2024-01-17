@@ -177,7 +177,7 @@
 <div
   class="draggable {$$restProps.class || ''}"
   on:mousedown|capture={onMouseDown}
-  on:touchstart={onMouseDown}
+  on:touchstart|passive={onMouseDown}
   bind:this={el}
   on:click
 >
